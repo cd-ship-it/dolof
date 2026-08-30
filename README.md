@@ -55,7 +55,14 @@ status / box); `/admin/export` downloads paid orders as CSV.
 
 ## Production deployment (shared host)
 
-1. Upload to a web directory named `dolof/`; run `composer install --no-dev`.
+The shared host has no Composer/SSH, so `vendor/` is built locally and uploaded
+(same as the SummerCamp project). `vendor/` is gitignored — it is **not** in the repo.
+
+1. **Locally:** `composer install --no-dev --optimize-autoloader` to (re)build `vendor/`.
+   Then upload the whole `dolof/` tree **including `vendor/`** to the web directory
+   (FTP / cPanel File Manager). The app loads Stripe via
+   `require_once __DIR__ . '/vendor/autoload.php'`, so `vendor/autoload.php` must be
+   present on the server.
 2. Run `sql/production.sql` against `crossp11_db1` (no `CREATE DATABASE`; idempotent).
    If upgrading a database created before a schema change, also run the relevant file
    in `sql/migrations/`.
