@@ -63,10 +63,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   <?= csrf_input() ?>
 
   <div class="card space-y-3">
-    <div class="flex flex-col items-center text-center gap-1">
-      <img src="<?= e(APP_URL) ?>/img/koi-palace.webp" alt="Koi Palace 鯉魚門" class="h-24 w-auto">
-      <p class="text-sm font-medium text-gray-600">Proudly brought to you by Koi Palace.</p>
-    </div>
+
     <h2 class="font-semibold text-gray-900">Choose lunch boxes<span class="text-red-600">*</span></h2>
     <!-- <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p> -->
     <p class="text-sm text-gray-500">$15.00 per box (Tax included)</p>
@@ -108,6 +105,10 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
           </div>
         </div>
       <?php endforeach; ?>
+    </div>
+    <div class="flex flex-col items-center text-center gap-1">
+      <img src="<?= e(APP_URL) ?>/img/koi-palace.webp" alt="Koi Palace 鯉魚門" class="h-16 w-auto">
+      <p class="text-xs font-medium text-gray-400">Proudly brought to you by Koi Palace.</p>
     </div>
   </div>
 
@@ -417,6 +418,19 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     return h ? (parseInt(h.value, 10) || 0) : 0;
   }
 
+  function fieldVal(n) {
+    var el = form.querySelector('[name="' + n + '"]');
+    return el ? el.value.trim() : '';
+  }
+  function formIsComplete(anyBox) {
+    if (!anyBox) return false;
+    if (!fieldVal('first_name') || !fieldVal('last_name')) return false;
+    var email = fieldVal('email');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
+    if (!campusChosen()) return false;
+    return true;
+  }
+
   function recalc() {
     var cents = 0, any = false;
     form.querySelectorAll('input[data-qty]').forEach(function (h) {
@@ -426,7 +440,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       if (qty > 0 && cb && !cb.disabled) { cents += (PRICES[code] || 0) * qty; any = true; }
     });
     totalEl.textContent = '$' + (cents / 100).toFixed(2);
-    payBtn.disabled = !any;
+    payBtn.disabled = !formIsComplete(any);
     syncBoxHighlight();
   }
 
@@ -507,6 +521,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   });
 
   form.addEventListener('change', recalc);
+  form.addEventListener('input', recalc);   // keep the Continue button in sync as fields are typed
   recalc();
 
   function poll() {
