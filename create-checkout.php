@@ -59,9 +59,7 @@ $errors = [];
 if ($first === '')                                   { $errors[] = 'First name is required.'; }
 if ($last === '')                                    { $errors[] = 'Last name is required.'; }
 if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) { $errors[] = 'A valid email address is required.'; }
-if ($phone === '')                                   { $errors[] = 'Phone number is required.'; }
 if (!in_array($campus, $CAMPUSES, true))             { $errors[] = 'Please choose a campus.'; }
-if ($liftGroup === '')                               { $errors[] = 'Lift Group Name is required.'; }
 if (mb_strlen($liftGroup) > 20)                      { $errors[] = 'Lift Group Name must be 20 characters or fewer.'; }
 if ($selectedCodes === [])                           { $errors[] = 'Select at least one lunch box.'; }
 

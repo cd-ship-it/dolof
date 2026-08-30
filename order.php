@@ -81,8 +81,8 @@ layout_head('Order — Deacons Ordination Luncheon');
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">Phone</span>
-        <input type="tel" name="phone" required maxlength="50" value="<?= e($old['phone'] ?? '') ?>"
+        <span class="text-sm font-medium text-gray-700">Phone <span class="text-gray-400 font-normal">(optional)</span></span>
+        <input type="tel" name="phone" maxlength="50" value="<?= e($old['phone'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
     </div>
@@ -103,9 +103,9 @@ layout_head('Order — Deacons Ordination Luncheon');
     <p id="campus-error" class="hidden text-sm font-medium text-red-600">Please choose a campus to continue.</p>
 
     <label class="block">
-      <span class="font-semibold text-gray-900">Lift Group Name</span>
+      <span class="font-semibold text-gray-900">Lift Group Name <span class="text-gray-400 font-normal text-sm">(optional)</span></span>
       <input type="text" name="lift_group" id="lift-group-input" list="lift-group-options"
-             required maxlength="20" autocomplete="off" value="<?= e($old['lift_group'] ?? '') ?>"
+             maxlength="20" autocomplete="off" value="<?= e($old['lift_group'] ?? '') ?>"
              class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       <datalist id="lift-group-options"></datalist>
       <span class="text-xs text-gray-500" id="lift-group-hint">Choose a campus above to see its life groups, or type your own (max 20 characters).</span>
