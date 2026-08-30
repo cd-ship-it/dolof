@@ -36,6 +36,11 @@ Then open <http://localhost:8888/dolof/order>. Pay with Stripe test card
 ($15) and `DOLOS_DEFAULT_BOX_CAP` (100) seed new installs; per-box price/cap are then
 edited on the admin dashboard.
 
+`data/life-groups.json` maps each campus to its life-group names. Picking a campus on
+the form populates a type-ahead (`<datalist>`) for the Lift Group Name field; the field
+stays free text, so anything not in the list is still accepted. Edit that JSON to
+update the lists — no code or DB change needed.
+
 ## Admin
 
 `/admin` → "Sign in with Google". Only emails in `ADMIN_WHITELIST` (`.env`) are allowed.

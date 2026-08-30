@@ -24,6 +24,14 @@ if (!in_array($oldCampus, $campuses, true)) {
     $oldCampus = '';
 }
 
+// Campus -> life group suggestions (data/life-groups.json). The field stays free
+// text; these only pre-fill as the orderer types.
+$lifeGroupsByCampus = [];
+$lgFile = __DIR__ . '/data/life-groups.json';
+if (is_file($lgFile)) {
+    $lifeGroupsByCampus = json_decode((string) file_get_contents($lgFile), true) ?: [];
+}
+
 layout_head('Order — Deacons Ordination Luncheon');
 ?>
 <h1 class="text-2xl font-bold text-indigo-900 mb-1">Luncheon Box Order</h1>
@@ -95,9 +103,11 @@ layout_head('Order — Deacons Ordination Luncheon');
 
     <label class="block">
       <span class="text-sm font-medium text-gray-700">Lift Group Name</span>
-      <input type="text" name="lift_group" required maxlength="20" value="<?= e($old['lift_group'] ?? '') ?>"
+      <input type="text" name="lift_group" id="lift-group-input" list="lift-group-options"
+             required maxlength="20" autocomplete="off" value="<?= e($old['lift_group'] ?? '') ?>"
              class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-      <span class="text-xs text-gray-400">Max 20 characters.</span>
+      <datalist id="lift-group-options"></datalist>
+      <span class="text-xs text-gray-500" id="lift-group-hint">Choose a campus above to see its life groups, or type your own (max 20 characters).</span>
     </label>
   </div>
 
@@ -166,10 +176,44 @@ layout_head('Order — Deacons Ordination Luncheon');
       UNSEL.forEach(function (c) { opt.classList.toggle(c, !on); });
     });
   }
+  // Campus -> life group suggestions. Field stays free text: unknown values are kept.
+  var LIFE_GROUPS = <?= json_encode($lifeGroupsByCampus, JSON_UNESCAPED_SLASHES) ?>;
+  var lgInput = document.getElementById('lift-group-input');
+  var lgList = document.getElementById('lift-group-options');
+  var lgHint = document.getElementById('lift-group-hint');
+
+  function refreshLifeGroups(userChanged) {
+    var chosen = form.querySelector('.campus-radio:checked');
+    var groups = (chosen && LIFE_GROUPS[chosen.value]) ? LIFE_GROUPS[chosen.value] : [];
+    lgList.innerHTML = '';
+    groups.forEach(function (name) {
+      var o = document.createElement('option');
+      o.value = name;
+      lgList.appendChild(o);
+    });
+    if (!chosen) {
+      lgHint.textContent = 'Choose a campus above to see its life groups, or type your own (max 20 characters).';
+    } else if (groups.length) {
+      lgHint.textContent = 'Start typing to pick a ' + chosen.value + ' life group, or enter your own (max 20 characters).';
+    } else {
+      lgHint.textContent = 'Enter your life group name (max 20 characters).';
+    }
+    // Only wipe the field on an actual campus switch, and only if it held a
+    // suggestion from the previous campus (keep anything the user typed themselves).
+    if (userChanged && lgInput.value && ALL_GROUPS.indexOf(lgInput.value) !== -1
+        && groups.indexOf(lgInput.value) === -1) {
+      lgInput.value = '';
+    }
+  }
+  var ALL_GROUPS = Object.keys(LIFE_GROUPS).reduce(function (acc, k) {
+    return acc.concat(LIFE_GROUPS[k]);
+  }, []);
+
   form.querySelectorAll('.campus-radio').forEach(function (r) {
-    r.addEventListener('change', syncCampus);
+    r.addEventListener('change', function () { syncCampus(); refreshLifeGroups(true); });
   });
   syncCampus();
+  refreshLifeGroups(false);
 
   // Live US phone formatting: (123) 456-7890
   var phoneEl = form.querySelector('input[name="phone"]');
