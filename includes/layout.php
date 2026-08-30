@@ -57,6 +57,7 @@ function admin_head(string $title, string $active = ''): void
     $links = [
         'dashboard' => ['Dashboard', $base . '/admin/dashboard'],
         'orders'    => ['Orders',    $base . '/admin/orders'],
+        'report'    => ['Report',    $base . '/admin/report'],
     ];
     ?>
 <!DOCTYPE html>
