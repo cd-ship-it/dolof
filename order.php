@@ -65,7 +65,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   <div class="card space-y-3">
     <h2 class="font-semibold text-gray-900">Choose lunch boxes (by Koi Palace 鯉魚門)<span class="text-red-600">*</span></h2>
     <!-- <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p> -->
-    <p class="text-sm text-gray-500">$15.00 per box</p>
+    <p class="text-sm text-gray-500">$15.00 per box (Tax included)</p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <?php foreach ($boxes as $b):
         $code       = $b['code'];
@@ -74,9 +74,9 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
         $wasChecked = in_array($code, $old['boxes'] ?? [], true) && !$soldOut;
         $qtyOld     = $wasChecked ? max(1, min($capLeft, (int) ($old['qty'][$code] ?? 1))) : 0;
       ?>
-        <div class="rounded-lg border-2 border-gray-200 p-3 <?= $soldOut ? 'opacity-60' : '' ?>"
+        <div class="rounded-lg border-2 border-gray-200 p-3 <?= $soldOut ? 'opacity-60' : 'cursor-pointer select-none' ?>"
              data-box-row="<?= e($code) ?>">
-          <label class="flex items-start gap-3 cursor-pointer">
+          <label class="flex items-start gap-3 <?= $soldOut ? '' : 'cursor-pointer' ?>">
             <input type="checkbox" name="boxes[]" value="<?= e($code) ?>"
                    class="mt-0.5 h-6 w-6 shrink-0 rounded border-gray-400 text-indigo-600 box-check"
                    <?= $wasChecked ? 'checked' : '' ?> <?= $soldOut ? 'disabled' : '' ?>>
@@ -484,6 +484,20 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     }
 
     setQty(parseInt(hidden.value, 10) || 0);
+  });
+
+  // Whole box card toggles selection. Clicks on the qty stepper, or on the
+  // checkbox/label itself (which the browser already toggles), are left alone.
+  form.querySelectorAll('[data-box-row]').forEach(function (row) {
+    var cb = row.querySelector('.box-check');
+    if (!cb) return;
+    row.addEventListener('click', function (e) {
+      if (cb.disabled) return;
+      if (e.target.closest('[data-stepper]')) return;
+      if (e.target.closest('label')) return;
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change', { bubbles: true }));
+    });
   });
 
   form.addEventListener('change', recalc);
