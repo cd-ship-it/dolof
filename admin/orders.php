@@ -69,6 +69,8 @@ admin_head('Orders', 'orders');
         <th class="px-3 py-2">Name</th>
         <th class="px-3 py-2">Email</th>
         <th class="px-3 py-2">Phone</th>
+        <th class="px-3 py-2">Campus</th>
+        <th class="px-3 py-2">Lift Group</th>
         <th class="px-3 py-2">Boxes</th>
         <th class="px-3 py-2 text-right">Total</th>
         <th class="px-3 py-2">Status</th>
@@ -85,6 +87,8 @@ admin_head('Orders', 'orders');
         <td class="px-3 py-2"><?= e(trim($o['first_name'] . ' ' . $o['last_name'])) ?></td>
         <td class="px-3 py-2"><?= e($o['email']) ?></td>
         <td class="px-3 py-2"><?= e($o['phone']) ?></td>
+        <td class="px-3 py-2"><?= e($o['campus']) ?></td>
+        <td class="px-3 py-2"><?= e($o['lift_group']) ?></td>
         <td class="px-3 py-2 font-mono text-xs"><?= e($o['items_summary'] ?? '') ?></td>
         <td class="px-3 py-2 text-right"><?= e(money((int) $o['total_amount_cents'])) ?></td>
         <td class="px-3 py-2"><?= e($o['status']) ?></td>
@@ -92,7 +96,7 @@ admin_head('Orders', 'orders');
       </tr>
     <?php endforeach; ?>
     <?php if (!$orders): ?>
-      <tr><td colspan="8" class="px-3 py-6 text-center text-gray-500">No orders match.</td></tr>
+      <tr><td colspan="10" class="px-3 py-6 text-center text-gray-500">No orders match.</td></tr>
     <?php endif; ?>
     </tbody>
   </table>

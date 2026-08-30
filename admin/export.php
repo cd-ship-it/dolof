@@ -35,7 +35,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
 $out = fopen('php://output', 'w');
 fprintf($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
 
-$header = ['Order #', 'First Name', 'Last Name', 'Email', 'Phone'];
+$header = ['Order #', 'First Name', 'Last Name', 'Email', 'Phone', 'Campus', 'Lift Group'];
 foreach ($codes as $c) {
     $header[] = 'Box ' . $c;
 }
@@ -49,6 +49,8 @@ foreach ($orders as $o) {
         $o['last_name'],
         $o['email'],
         $o['phone'],
+        $o['campus'],
+        $o['lift_group'],
     ];
     foreach ($codes as $c) {
         $row[] = $qtyByOrder[(int) $o['id']][$c] ?? 0;

@@ -1,9 +1,10 @@
 # Dolos — Deacons Ordination Luncheon Ordering System
 
-PHP + MySQL + Tailwind (Play CDN). Public form takes name / email / phone, lets the
-orderer pick lunch boxes **A–E** (1–10 each), and **requires online payment via Stripe
-Checkout** before an order is confirmed. Each box set has a hard cap (default 100) that
-is never oversold, even under concurrent submissions.
+PHP + MySQL + Tailwind (Play CDN). Public form takes name / email / phone (formatted
+live as a US number) / campus (San Leandro, Milpitas, Pleasanton, Tracy) / Lift Group
+Name, lets the orderer pick lunch boxes **A–E** (1–10 each), and **requires online
+payment via Stripe Checkout** before an order is confirmed. Each box set has a hard cap
+(default 100) that is never oversold, even under concurrent submissions.
 
 ## How the capacity guard works
 
@@ -51,6 +52,8 @@ status / box); `/admin/export` downloads paid orders as CSV.
 
 1. Upload to a web directory named `dolof/`; run `composer install --no-dev`.
 2. Run `sql/production.sql` against `crossp11_db1` (no `CREATE DATABASE`; idempotent).
+   If upgrading a database created before a schema change, also run the relevant file
+   in `sql/migrations/`.
 3. Server `.env`: switch to the production DB block, `APP_ENV=production`,
    `APP_URL=https://crosspointchurchsv.org/dolof`, live Stripe keys + webhook secret,
    `ADMIN_WHITELIST`.

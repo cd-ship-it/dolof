@@ -31,6 +31,8 @@ if (!$order) {
     <div><span class="text-gray-500">Name:</span> <?= e(trim($order['first_name'] . ' ' . $order['last_name'])) ?></div>
     <div><span class="text-gray-500">Email:</span> <?= e($order['email']) ?></div>
     <div><span class="text-gray-500">Phone:</span> <?= e($order['phone']) ?></div>
+    <div><span class="text-gray-500">Campus:</span> <?= e($order['campus']) ?></div>
+    <div><span class="text-gray-500">Lift Group:</span> <?= e($order['lift_group']) ?></div>
     <div><span class="text-gray-500">Status:</span> <?= e($order['status']) ?></div>
     <div><span class="text-gray-500">Placed:</span> <?= e($order['created_at']) ?></div>
     <div><span class="text-gray-500">Stripe session:</span> <span class="font-mono text-xs"><?= e($order['stripe_session_id']) ?></span></div>

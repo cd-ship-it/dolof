@@ -18,6 +18,11 @@ $boxes       = boxes_with_remaining($pdo);
 $open        = ordering_is_open($pdo);
 $maxQty      = DOLOS_MAX_QTY_PER_BOX;
 $cancelled   = isset($_GET['cancelled']);
+$campuses    = ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy'];
+$oldCampus   = $old['campus'] ?? '';
+if (!in_array($oldCampus, $campuses, true)) {
+    $oldCampus = '';
+}
 
 layout_head('Order — Deacons Ordination Luncheon');
 ?>
@@ -75,6 +80,33 @@ layout_head('Order — Deacons Ordination Luncheon');
     </div>
   </div>
 
+  <div class="card space-y-4">
+    <h2 class="font-semibold text-gray-900">Campus</h2>
+
+    <div id="campus-banner"
+         class="<?= $oldCampus === '' ? 'hidden ' : '' ?>rounded-lg bg-indigo-600 text-white text-center py-4 px-3">
+      <div class="text-xs uppercase tracking-wide text-indigo-200">Your campus</div>
+      <div class="text-2xl font-bold" id="campus-banner-name"><?= e($oldCampus) ?></div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <?php foreach ($campuses as $c): ?>
+        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-3 py-4 text-center font-medium transition
+                      <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-gray-200 text-gray-700 hover:border-indigo-300' ?>">
+          <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?> required>
+          <?= e($c) ?>
+        </label>
+      <?php endforeach; ?>
+    </div>
+
+    <label class="block">
+      <span class="text-sm font-medium text-gray-700">Lift Group Name</span>
+      <input type="text" name="lift_group" required maxlength="20" value="<?= e($old['lift_group'] ?? '') ?>"
+             class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      <span class="text-xs text-gray-400">Max 20 characters.</span>
+    </label>
+  </div>
+
   <div class="card space-y-3">
     <h2 class="font-semibold text-gray-900">Choose lunch boxes</h2>
     <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p>
@@ -129,6 +161,48 @@ layout_head('Order — Deacons Ordination Luncheon');
   var form = document.getElementById('order-form');
   var totalEl = document.getElementById('order-total');
   var payBtn = document.getElementById('pay-btn');
+
+  // Campus radio: prominent banner + highlight the chosen card.
+  var campusBanner = document.getElementById('campus-banner');
+  var campusBannerName = document.getElementById('campus-banner-name');
+  var SEL = 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300'.split(' ');
+  var UNSEL = 'border-gray-200 text-gray-700 hover:border-indigo-300'.split(' ');
+  function syncCampus() {
+    var chosen = form.querySelector('.campus-radio:checked');
+    form.querySelectorAll('.campus-option').forEach(function (opt) {
+      var on = opt.querySelector('.campus-radio').checked;
+      SEL.forEach(function (c) { opt.classList.toggle(c, on); });
+      UNSEL.forEach(function (c) { opt.classList.toggle(c, !on); });
+    });
+    if (chosen) {
+      campusBannerName.textContent = chosen.value;
+      campusBanner.classList.remove('hidden');
+    } else {
+      campusBanner.classList.add('hidden');
+    }
+  }
+  form.querySelectorAll('.campus-radio').forEach(function (r) {
+    r.addEventListener('change', syncCampus);
+  });
+  syncCampus();
+
+  // Live US phone formatting: (123) 456-7890
+  var phoneEl = form.querySelector('input[name="phone"]');
+  function formatPhone(v) {
+    var d = (v || '').replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '1') { d = d.slice(1); }
+    d = d.slice(0, 10);
+    if (d.length === 0) return '';
+    if (d.length < 4) return '(' + d;
+    if (d.length < 7) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
+    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+  }
+  if (phoneEl) {
+    var reformat = function () { phoneEl.value = formatPhone(phoneEl.value); };
+    phoneEl.addEventListener('input', reformat);
+    phoneEl.addEventListener('blur', reformat);
+    reformat();
+  }
 
   function recalc() {
     var cents = 0, any = false;

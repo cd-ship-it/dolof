@@ -54,7 +54,9 @@ layout_head('Thank you — Deacons Ordination Luncheon');
   <div class="card">
     <h2 class="font-semibold text-gray-900 mb-3">Order #<?= (int) $order['id'] ?></h2>
     <p class="text-sm text-gray-600 mb-4">
-      <?= e(trim($order['first_name'] . ' ' . $order['last_name'])) ?> &middot; <?= e($order['phone']) ?>
+      <?= e(trim($order['first_name'] . ' ' . $order['last_name'])) ?> &middot; <?= e($order['phone']) ?><br>
+      <span class="text-gray-500">Campus:</span> <?= e($order['campus']) ?>
+      &middot; <span class="text-gray-500">Lift Group:</span> <?= e($order['lift_group']) ?>
     </p>
     <table class="w-full text-sm">
       <thead><tr class="text-left text-gray-500 border-b">

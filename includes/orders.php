@@ -11,7 +11,7 @@ require_once __DIR__ . '/logger.php';
 require_once __DIR__ . '/boxes.php';
 
 /**
- * @param array $customer  ['first_name','last_name','email','phone']
+ * @param array $customer  ['first_name','last_name','email','phone','campus','lift_group']
  * @param array $lines      each: ['box_id','code','name','unit_price_cents','quantity']
  * @return int  new order id
  * @throws BoxCapacityException when a box would exceed its cap
@@ -75,15 +75,17 @@ function create_pending_order(PDO $pdo, array $customer, array $lines, int $hold
 
         $pdo->prepare(
             'INSERT INTO ' . DOLOS_TBL_ORDERS . '
-                (first_name, last_name, email, phone, status, total_amount_cents,
-                 payment_method, hold_expires_at, created_at, updated_at)
-             VALUES (?, ?, ?, ?, \'pending\', ?, \'stripe\',
+                (first_name, last_name, email, phone, campus, lift_group, status,
+                 total_amount_cents, payment_method, hold_expires_at, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, \'pending\', ?, \'stripe\',
                      DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW(), NOW())'
         )->execute([
             $customer['first_name'],
             $customer['last_name'],
             $customer['email'],
             $customer['phone'],
+            $customer['campus'] ?? '',
+            $customer['lift_group'] ?? '',
             $total,
             $holdMinutes,
         ]);

@@ -29,18 +29,24 @@ function reject_with(array $errors, array $old): void
     exit;
 }
 
-$first = trim($_POST['first_name'] ?? '');
-$last  = trim($_POST['last_name'] ?? '');
-$email = trim($_POST['email'] ?? '');
-$phone = trim($_POST['phone'] ?? '');
+$first     = trim($_POST['first_name'] ?? '');
+$last      = trim($_POST['last_name'] ?? '');
+$email     = trim($_POST['email'] ?? '');
+$phone     = trim($_POST['phone'] ?? '');
+$campus    = trim($_POST['campus'] ?? '');
+$liftGroup = trim($_POST['lift_group'] ?? '');
 $selectedCodes = array_values(array_filter((array) ($_POST['boxes'] ?? []), 'is_string'));
 $qtyInput      = (array) ($_POST['qty'] ?? []);
+
+$CAMPUSES = ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy'];
 
 $old = [
     'first_name' => $first,
     'last_name'  => $last,
     'email'      => $email,
     'phone'      => $phone,
+    'campus'     => $campus,
+    'lift_group' => $liftGroup,
     'boxes'      => $selectedCodes,
     'qty'        => array_map('intval', $qtyInput),
 ];
@@ -54,6 +60,9 @@ if ($first === '')                                   { $errors[] = 'First name i
 if ($last === '')                                    { $errors[] = 'Last name is required.'; }
 if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) { $errors[] = 'A valid email address is required.'; }
 if ($phone === '')                                   { $errors[] = 'Phone number is required.'; }
+if (!in_array($campus, $CAMPUSES, true))             { $errors[] = 'Please choose a campus.'; }
+if ($liftGroup === '')                               { $errors[] = 'Lift Group Name is required.'; }
+if (mb_strlen($liftGroup) > 20)                      { $errors[] = 'Lift Group Name must be 20 characters or fewer.'; }
 if ($selectedCodes === [])                           { $errors[] = 'Select at least one lunch box.'; }
 
 // Match selections to active boxes and build order lines.
@@ -97,6 +106,8 @@ try {
         'last_name'  => $last,
         'email'      => $email,
         'phone'      => $phone,
+        'campus'     => $campus,
+        'lift_group' => $liftGroup,
     ], $lines, HOLD_MINUTES);
 } catch (BoxCapacityException $e) {
     app_log('high', 'Order', 'capacity rejection', ['sold_out' => $e->getSoldOutCodes()]);
@@ -126,7 +137,7 @@ try {
         'line_items'           => $lineItems,
         'customer_email'       => $email,
         'client_reference_id'  => (string) $orderId,
-        'metadata'             => ['order_id' => (string) $orderId, 'source' => 'dolos'],
+        'metadata'             => ['order_id' => (string) $orderId, 'source' => 'dolos', 'campus' => $campus, 'lift_group' => $liftGroup],
         'payment_intent_data'  => ['metadata' => ['order_id' => (string) $orderId, 'source' => 'dolos']],
         'expires_at'           => time() + STRIPE_CHECKOUT_MINUTES * 60,
         'success_url'          => APP_URL . '/success?session_id={CHECKOUT_SESSION_ID}',
