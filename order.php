@@ -164,7 +164,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     </div>
     <button type="submit" class="btn-primary" id="pay-btn" disabled>Continue</button>
   </div>
-  <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p>
+  <!-- <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p> -->
 </form>
 
 <div id="confirm-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3">

@@ -88,11 +88,18 @@ function admin_head(string $title, string $active = ''): void
 
 function layout_footer(): void
 {
+    $base = defined('APP_URL') ? APP_URL : '';
     ?>
 </main>
 <footer class="max-w-3xl mx-auto px-4 py-8 text-center text-sm text-gray-500">
-  Questions? Email <a href="mailto:cd@crosspointchurchsv.org" class="text-indigo-600 underline">cd@crosspointchurchsv.org</a><br>
-  &copy; <?= date('Y') ?> Crosspoint Church
+  <p class="flex items-center justify-center gap-1.5 text-gray-400">
+    <span>Payments powered &amp; secured by</span>
+    <img src="<?= e($base) ?>/img/stripe.svg" alt="Stripe" class="h-4 w-auto inline-block align-middle">
+  </p>
+  <p class="mt-3">
+    Questions? Email <a href="mailto:cd@crosspointchurchsv.org" class="text-indigo-600 underline">cd@crosspointchurchsv.org</a><br>
+    &copy; <?= date('Y') ?> Crosspoint Church
+  </p>
 </footer>
 </body>
 </html>
