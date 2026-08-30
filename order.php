@@ -66,12 +66,12 @@ layout_head('Order — Deacons Ordination Luncheon');
     <h2 class="font-semibold text-gray-900">Your details</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">First name</span>
+        <span class="text-sm font-medium text-gray-700">First name <span class="text-red-600">*</span></span>
         <input type="text" name="first_name" required maxlength="100" value="<?= e($old['first_name'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">Last name</span>
+        <span class="text-sm font-medium text-gray-700">Last name <span class="text-red-600">*</span></span>
         <input type="text" name="last_name" required maxlength="100" value="<?= e($old['last_name'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
@@ -89,17 +89,18 @@ layout_head('Order — Deacons Ordination Luncheon');
   </div>
 
   <div class="card space-y-4">
-    <h2 class="font-semibold text-gray-900">Campus</h2>
+    <h2 class="font-semibold text-gray-900">Campus <span class="text-red-600">*</span></h2>
 
     <div class="grid grid-cols-2 gap-3">
       <?php foreach ($campuses as $c): ?>
         <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-3 py-5 text-center font-medium text-lg transition
                       <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400' ?>">
-          <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?> required>
+          <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?>>
           <?= e($c) ?>
         </label>
       <?php endforeach; ?>
     </div>
+    <p id="campus-error" class="hidden text-sm font-medium text-red-600">Please choose a campus to continue.</p>
 
     <label class="block">
       <span class="font-semibold text-gray-900">Lift Group Name</span>
@@ -175,14 +176,17 @@ layout_head('Order — Deacons Ordination Luncheon');
   var payBtn = document.getElementById('pay-btn');
 
   // Campus radio: highlight the chosen card.
+  var campusError = document.getElementById('campus-error');
   var SEL = 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300'.split(' ');
   var UNSEL = 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400'.split(' ');
+  function campusChosen() { return form.querySelector('.campus-radio:checked'); }
   function syncCampus() {
     form.querySelectorAll('.campus-option').forEach(function (opt) {
       var on = opt.querySelector('.campus-radio').checked;
       SEL.forEach(function (c) { opt.classList.toggle(c, on); });
       UNSEL.forEach(function (c) { opt.classList.toggle(c, !on); });
     });
+    if (campusChosen()) { campusError.classList.add('hidden'); }
   }
   // Campus -> life group suggestions. Field stays free text: unknown values are kept.
   var LIFE_GROUPS = <?= json_encode($lifeGroupsByCampus, JSON_UNESCAPED_SLASHES) ?>;
@@ -222,6 +226,16 @@ layout_head('Order — Deacons Ordination Luncheon');
   });
   syncCampus();
   refreshLifeGroups(false);
+
+  // Campus is required but its radios are visually hidden, so guard the submit
+  // ourselves (native validation can't focus a hidden control).
+  form.addEventListener('submit', function (e) {
+    if (!campusChosen()) {
+      e.preventDefault();
+      campusError.classList.remove('hidden');
+      campusError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
 
   // Live US phone formatting: (123) 456-7890
   var phoneEl = form.querySelector('input[name="phone"]');
@@ -282,6 +296,17 @@ layout_head('Order — Deacons Ordination Luncheon');
 
   form.addEventListener('change', recalc);
   recalc();
+
+  // Touching a Qty control implies you want that box — tick its checkbox so a
+  // quantity is never submitted without its box selected.
+  form.querySelectorAll('.qty-select').forEach(function (sel) {
+    var claim = function () {
+      var cb = form.querySelector('.box-check[value="' + sel.dataset.qty + '"]');
+      if (cb && !cb.disabled && !cb.checked) { cb.checked = true; recalc(); }
+    };
+    sel.addEventListener('click', claim);
+    sel.addEventListener('change', claim);
+  });
 
   function poll() {
     fetch('<?= e(APP_URL) ?>/remaining-counts', { cache: 'no-store' })
