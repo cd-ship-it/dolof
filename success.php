@@ -65,7 +65,7 @@ layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
       <tbody>
       <?php foreach ($order['items'] as $it): ?>
         <tr class="border-b border-gray-100">
-          <td class="py-2"><?= e($it['box_name']) ?></td>
+          <td class="py-2"><?= dish_name_html($it['box_name']) ?></td>
           <td class="py-2 text-center"><?= (int) $it['quantity'] ?></td>
           <td class="py-2 text-right"><?= e(money((int) $it['unit_price_cents'] * (int) $it['quantity'])) ?></td>
         </tr>

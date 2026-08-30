@@ -84,7 +84,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
             <span class="min-w-0">
               <span class="font-semibold text-gray-900">
                 <span class="inline-flex items-center justify-center h-6 w-6 rounded bg-indigo-100 text-indigo-800 font-bold"><?= e($code) ?></span>
-                <?= e($b['name']) ?>
+                <?= dish_name_html($b['name']) ?>
               </span>
               <!-- <span class="block text-gray-500 text-sm"><?= e(money((int) $b['price_cents'])) ?></span> -->
               <?php
@@ -328,6 +328,22 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   var confirmed = false;
   var modal = document.getElementById('confirm-modal');
   function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+  // Dish name with English (Latin) runs a little smaller + lighter (mirrors dish_name_html in PHP).
+  function dishNameHtml(name) {
+    var s = String(name == null ? '' : name), out = '', re = /[\x20-\x7E]+/g, last = 0, m;
+    while ((m = re.exec(s))) {
+      out += esc(s.slice(last, m.index));
+      var seg = m[0];
+      if (/[A-Za-z]/.test(seg)) {
+        var lead = seg[0] === ' ' ? ' ' : '', trail = seg.slice(-1) === ' ' ? ' ' : '';
+        out += lead + '<span class="text-[0.85em] font-normal text-gray-500">' + esc(seg.trim()) + '</span>' + trail;
+      } else {
+        out += esc(seg);
+      }
+      last = re.lastIndex;
+    }
+    return out + esc(s.slice(last));
+  }
 
   function buildSummary() {
     var f = function (n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ''; };
@@ -351,7 +367,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       var sub = (PRICES[code] || 0) * qty;
       total += sub;
       rows += '<tr>'
-        + '<td class="py-1 pr-3"><span class="font-semibold text-indigo-700">' + esc(code) + '</span> ' + esc(BOX_NAMES[code] || '') + '</td>'
+        + '<td class="py-1 pr-3"><span class="font-semibold text-indigo-700">' + esc(code) + '</span> ' + dishNameHtml(BOX_NAMES[code] || '') + '</td>'
         + '<td class="py-1 px-2 text-center whitespace-nowrap">' + qty + ' &times; $' + ((PRICES[code] || 0) / 100).toFixed(2) + '</td>'
         + '<td class="py-1 pl-3 text-right font-medium">$' + (sub / 100).toFixed(2) + '</td>'
         + '</tr>';
