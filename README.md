@@ -1,4 +1,4 @@
-# Dolos — Deacons Ordination Luncheon Ordering System
+# Dolos — Deacons Ordination Lunch Ordering Form Ordering System
 
 PHP + MySQL + Tailwind (Play CDN). Public form takes name / email / phone (formatted
 live as a US number) / campus (San Leandro, Milpitas, Pleasanton, Tracy) / Lift Group

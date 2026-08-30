@@ -1,6 +1,6 @@
 {
   "name": "crosspoint/dolof",
-  "description": "Dolos — Deacons Ordination Luncheon Ordering System",
+  "description": "Dolos — Deacons Ordination Lunch Ordering Form Ordering System",
   "type": "project",
   "require": {
     "php": ">=8.1",

@@ -32,7 +32,7 @@ $googleUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query(
 <body class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
   <div class="bg-white rounded-xl shadow p-8 w-full max-w-md">
     <h1 class="text-xl font-bold text-gray-900 mb-1">Dolos Admin</h1>
-    <p class="text-sm text-gray-500 mb-6">Deacons Ordination Luncheon Ordering System</p>
+    <p class="text-sm text-gray-500 mb-6">Deacons Ordination Lunch Ordering Form Ordering System</p>
 
     <?php if ($denied): ?>
       <p class="text-sm text-red-600 mb-4">That Google account is not authorized for admin access.</p>

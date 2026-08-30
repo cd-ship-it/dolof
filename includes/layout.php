@@ -4,7 +4,7 @@
  */
 require_once __DIR__ . '/helpers.php';
 
-function layout_head(string $title = 'Deacons Ordination Luncheon'): void
+function layout_head(string $title = 'Deacons Ordination Lunch Ordering Form'): void
 {
     $base = defined('APP_URL') ? APP_URL : '';
     ?>
@@ -44,7 +44,7 @@ function layout_head(string $title = 'Deacons Ordination Luncheon'): void
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-sky-100 text-gray-900">
 <header class="bg-white border-b border-gray-200">
   <div class="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-    <a href="<?= e($base) ?>/order" class="font-bold text-indigo-800 text-lg">Deacons Ordination Luncheon</a>
+    <a href="<?= e($base) ?>/order" class="font-bold text-indigo-800 text-lg">Deacons Ordination Lunch Ordering Form</a>
   </div>
 </header>
 <main class="max-w-3xl mx-auto px-4 py-8">

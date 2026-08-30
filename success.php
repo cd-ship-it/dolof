@@ -43,7 +43,7 @@ try {
     app_log('high', 'Payment', 'success page error', ['error' => $e->getMessage()]);
 }
 
-layout_head('Thank you — Deacons Ordination Luncheon');
+layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
 ?>
 <?php if ($order && $order['status'] === 'paid'): ?>
   <div class="card text-center mb-6">

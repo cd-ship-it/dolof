@@ -1,5 +1,5 @@
 -- ============================================================================
--- Dolos (DOLOS) — Deacons Ordination Luncheon Ordering System
+-- Dolos (DOLOS) — Deacons Ordination Lunch Ordering Form Ordering System
 -- PRODUCTION deployment script.
 --
 -- Assumes the target database already exists (shared host: crossp11_db1).
@@ -92,7 +92,7 @@ ON DUPLICATE KEY UPDATE `code` = VALUES(`code`);
 
 INSERT INTO `dolos_settings` (`key`, `value`) VALUES
   ('ordering_open',  '1'),
-  ('event_title',    'Deacons Ordination Luncheon'),
+  ('event_title',    'Deacons Ordination Lunch Ordering Form'),
   ('event_date',     ''),
   ('event_location', 'Crosspoint Church')
 ON DUPLICATE KEY UPDATE `value` = `value`;

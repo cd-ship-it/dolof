@@ -138,7 +138,7 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
         return false;
     }
 
-    $eventTitle    = dolos_setting($pdo, 'event_title', 'Deacons Ordination Luncheon');
+    $eventTitle    = dolos_setting($pdo, 'event_title', 'Deacons Ordination Lunch Ordering Form');
     $eventDate     = dolos_setting($pdo, 'event_date', '');
     $eventLocation = dolos_setting($pdo, 'event_location', 'Crosspoint Church');
 

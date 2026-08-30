@@ -32,9 +32,9 @@ if (is_file($lgFile)) {
     $lifeGroupsByCampus = json_decode((string) file_get_contents($lgFile), true) ?: [];
 }
 
-layout_head('Order — Deacons Ordination Luncheon');
+layout_head('Order — Deacons Ordination Lunch Ordering Form');
 ?>
-<h1 class="text-2xl font-bold text-indigo-900 mb-1">Luncheon Box Order</h1>
+<!-- <h1 class="text-2xl font-bold text-indigo-900 mb-1">Luncheon Box Order</h1> -->
 <p class="text-gray-600 mb-6">Select your lunch boxes and pay online to confirm your order.</p>
 
 <?php if ($cancelled): ?>
@@ -162,7 +162,7 @@ layout_head('Order — Deacons Ordination Luncheon');
       <span class="text-sm text-gray-500">Order total</span>
       <div class="text-2xl font-bold text-indigo-900" id="order-total">$0.00</div>
     </div>
-    <button type="submit" class="btn-primary" id="pay-btn" disabled>Pay with card</button>
+    <button type="submit" class="btn-primary" id="pay-btn" disabled>Continue</button>
   </div>
   <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p>
 </form>
