@@ -62,6 +62,51 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
 <form method="post" action="<?= e(APP_URL) ?>/create-checkout" class="space-y-6" id="order-form">
   <?= csrf_input() ?>
 
+  <div class="card space-y-3">
+    <h2 class="font-semibold text-gray-900">Choose lunch boxes <span class="text-red-600">*</span></h2>
+    <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <?php foreach ($boxes as $b):
+        $code     = $b['code'];
+        $checked  = in_array($code, $old['boxes'] ?? [], true);
+        $qtyOld   = (int) ($old['qty'][$code] ?? 1);
+        $qtyOld   = max(1, min($maxQty, $qtyOld));
+        $soldOut  = $b['sold_out'];
+        $capLeft  = min($maxQty, max(0, (int) $b['remaining']));
+      ?>
+        <div class="rounded-lg border-2 border-gray-200 p-3 <?= $soldOut ? 'opacity-60' : '' ?>"
+             data-box-row="<?= e($code) ?>">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" name="boxes[]" value="<?= e($code) ?>"
+                   class="mt-0.5 h-6 w-6 shrink-0 rounded border-gray-400 text-indigo-600 box-check"
+                   <?= $checked && !$soldOut ? 'checked' : '' ?> <?= $soldOut ? 'disabled' : '' ?>>
+            <span class="min-w-0">
+              <span class="font-semibold text-gray-900">
+                <span class="inline-flex items-center justify-center h-6 w-6 rounded bg-indigo-100 text-indigo-800 font-bold"><?= e($code) ?></span>
+                <?= e($b['name']) ?>
+              </span>
+              <span class="block text-gray-500 text-sm"><?= e(money((int) $b['price_cents'])) ?></span>
+              <span class="block text-xs <?= $soldOut ? 'text-red-600 font-semibold' : 'text-emerald-700' ?>" data-remaining="<?= e($code) ?>">
+                <?= $soldOut ? 'Sold out' : ((int) $b['remaining'] . ' of ' . (int) $b['cap'] . ' left') ?>
+              </span>
+            </span>
+          </label>
+          <div class="mt-2 pl-9 flex items-center gap-2">
+            <label class="text-sm text-gray-600" for="qty-<?= e($code) ?>">Qty</label>
+            <select name="qty[<?= e($code) ?>]" id="qty-<?= e($code) ?>"
+                    class="rounded-md border-gray-300 shadow-sm text-sm qty-select"
+                    data-qty="<?= e($code) ?>" <?= $soldOut ? 'disabled' : '' ?>>
+              <?php for ($i = 1; $i <= $maxQty; $i++): ?>
+                <option value="<?= $i ?>" <?= $i === $qtyOld ? 'selected' : '' ?> <?= $i > $capLeft ? 'disabled' : '' ?>><?= $i ?></option>
+              <?php endfor; ?>
+            </select>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+
   <div class="card space-y-4">
     <h2 class="font-semibold text-gray-900">Your details</h2>
     <div class="grid sm:grid-cols-2 gap-4">
@@ -108,53 +153,8 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
              maxlength="20" autocomplete="off" value="<?= e($old['lift_group'] ?? '') ?>"
              class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       <datalist id="lift-group-options"></datalist>
-      <span class="text-xs text-gray-500" id="lift-group-hint">Choose a campus above to see its life groups, or type your own (max 20 characters).</span>
+      <span class="text-xs text-gray-500" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters).</span>
     </label>
-  </div>
-
-  <div class="card space-y-3">
-    <h2 class="font-semibold text-gray-900">Choose lunch boxes</h2>
-    <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <?php foreach ($boxes as $b):
-        $code     = $b['code'];
-        $checked  = in_array($code, $old['boxes'] ?? [], true);
-        $qtyOld   = (int) ($old['qty'][$code] ?? 1);
-        $qtyOld   = max(1, min($maxQty, $qtyOld));
-        $soldOut  = $b['sold_out'];
-        $capLeft  = min($maxQty, max(0, (int) $b['remaining']));
-      ?>
-        <div class="rounded-lg border-2 border-gray-200 p-3 <?= $soldOut ? 'opacity-60' : '' ?>"
-             data-box-row="<?= e($code) ?>">
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" name="boxes[]" value="<?= e($code) ?>"
-                   class="mt-0.5 h-6 w-6 shrink-0 rounded border-gray-400 text-indigo-600 box-check"
-                   <?= $checked && !$soldOut ? 'checked' : '' ?> <?= $soldOut ? 'disabled' : '' ?>>
-            <span class="min-w-0">
-              <span class="font-semibold text-gray-900">
-                <span class="inline-flex items-center justify-center h-6 w-6 rounded bg-indigo-100 text-indigo-800 font-bold"><?= e($code) ?></span>
-                <?= e($b['name']) ?>
-              </span>
-              <span class="block text-gray-500 text-sm"><?= e(money((int) $b['price_cents'])) ?></span>
-              <span class="block text-xs <?= $soldOut ? 'text-red-600 font-semibold' : 'text-emerald-700' ?>" data-remaining="<?= e($code) ?>">
-                <?= $soldOut ? 'Sold out' : ((int) $b['remaining'] . ' of ' . (int) $b['cap'] . ' left') ?>
-              </span>
-            </span>
-          </label>
-          <div class="mt-2 pl-9 flex items-center gap-2">
-            <label class="text-sm text-gray-600" for="qty-<?= e($code) ?>">Qty</label>
-            <select name="qty[<?= e($code) ?>]" id="qty-<?= e($code) ?>"
-                    class="rounded-md border-gray-300 shadow-sm text-sm qty-select"
-                    data-qty="<?= e($code) ?>" <?= $soldOut ? 'disabled' : '' ?>>
-              <?php for ($i = 1; $i <= $maxQty; $i++): ?>
-                <option value="<?= $i ?>" <?= $i === $qtyOld ? 'selected' : '' ?> <?= $i > $capLeft ? 'disabled' : '' ?>><?= $i ?></option>
-              <?php endfor; ?>
-            </select>
-          </div>
-        </div>
-      <?php endforeach; ?>
-    </div>
   </div>
 
   <div class="card flex items-center justify-between">
@@ -239,7 +239,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       lgList.appendChild(o);
     });
     if (!chosen) {
-      lgHint.textContent = 'Choose a campus above to see its life groups, or type your own (max 20 characters).';
+      lgHint.textContent = 'Choose your campus above to see its life groups, or type your own (max 20 characters).';
     } else if (groups.length) {
       lgHint.textContent = 'Start typing to pick a ' + chosen.value + ' life group, or enter your own (max 20 characters).';
     } else {
