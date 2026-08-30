@@ -63,7 +63,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   <?= csrf_input() ?>
 
   <div class="card space-y-3">
-    <h2 class="font-semibold text-gray-900">Choose lunch boxes (by Koi Palace 鯉魚門)<span class="text-red-600">*</span></h2>
+    <h2 class="font-semibold text-gray-900">Choose lunch boxes<span class="text-red-600">*</span> (by Koi Palace 鯉魚門)</h2>
     <!-- <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p> -->
     <p class="text-sm text-gray-500">$15.00 per box (Tax included)</p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -86,9 +86,11 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
                 <?= e($b['name']) ?>
               </span>
               <!-- <span class="block text-gray-500 text-sm"><?= e(money((int) $b['price_cents'])) ?></span> -->
-              <span class="block text-xs <?= $soldOut ? 'text-red-600 font-semibold' : 'text-gray-500' ?>" data-remaining="<?= e($code) ?>">
-                <?= $soldOut ? 'Sold out' : ((int) $b['remaining'] . ' of ' . (int) $b['cap'] . ' left') ?>
-              </span>
+              <?php
+                $rem = (int) $b['remaining'];
+                $remText = $soldOut ? 'Sold out' : ($rem <= 30 ? $rem . ' left' : '');
+              ?>
+              <span class="block text-xs min-h-[1em] <?= $soldOut ? 'text-red-600 font-semibold' : 'text-amber-600 font-medium' ?>" data-remaining="<?= e($code) ?>"><?= e($remText) ?></span>
             </span>
           </label>
           <div class="mt-2 pl-9 flex items-center gap-2" data-stepper="<?= e($code) ?>" data-allow="<?= (int) $capLeft ?>">
@@ -432,16 +434,15 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       var cb = form.querySelector('.box-check[value="' + code + '"]');
       var wrap = form.querySelector('[data-stepper="' + code + '"]');
       if (!label || !cb || !wrap) return;
-      var cap = <?= json_encode(array_column($boxes, 'cap', 'code')) ?>[code];
       if (info.sold_out) {
         label.textContent = 'Sold out';
-        label.className = 'block text-xs text-red-600 font-semibold';
+        label.className = 'block text-xs min-h-[1em] text-red-600 font-semibold';
         cb.disabled = true;
         wrap.dataset.allow = '0';
         if (wrap._setQty) wrap._setQty(0);
       } else {
-        label.textContent = info.remaining + ' of ' + cap + ' left';
-        label.className = 'block text-xs text-gray-500';
+        label.textContent = info.remaining <= 30 ? (info.remaining + ' left') : '';
+        label.className = 'block text-xs min-h-[1em] text-amber-600 font-medium';
         cb.disabled = false;
         wrap.dataset.allow = String(Math.min(MAX, info.remaining));
         if (wrap._setQty) wrap._setQty(qtyOf(code)); // re-clamp to the new max
