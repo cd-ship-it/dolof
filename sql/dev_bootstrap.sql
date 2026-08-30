@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS `dolos_orders` (
   `last_name`               VARCHAR(100) NOT NULL DEFAULT '',
   `email`                   VARCHAR(200) NOT NULL DEFAULT '',
   `phone`                   VARCHAR(50)  NOT NULL DEFAULT '',
-  `campus`                  VARCHAR(30)  NOT NULL DEFAULT '',
+  `campus`                  VARCHAR(50)  NOT NULL DEFAULT '',
   `lift_group`              VARCHAR(20)  NOT NULL DEFAULT '',
   `status`                  ENUM('pending','paid','expired','cancelled') NOT NULL DEFAULT 'pending',
   `total_amount_cents`      INT          NOT NULL DEFAULT 0,

@@ -18,7 +18,7 @@ $boxes       = boxes_with_remaining($pdo);
 $open        = ordering_is_open($pdo);
 $maxQty      = DOLOS_MAX_QTY_PER_BOX;
 $cancelled   = isset($_GET['cancelled']);
-$campuses    = ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy'];
+$campuses    = ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy', "I don't regularly attend Crosspoint"];
 $oldCampus   = $old['campus'] ?? '';
 if (!in_array($oldCampus, $campuses, true)) {
     $oldCampus = '';
@@ -142,8 +142,8 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     <h2 class="font-semibold text-gray-900">Campus <span class="text-red-600">*</span></h2>
 
     <div class="grid grid-cols-2 gap-3">
-      <?php foreach ($campuses as $c): ?>
-        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-2 py-2 text-center font-medium text-sm transition
+      <?php foreach ($campuses as $c): $wide = strlen($c) > 16; ?>
+        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-2 py-2 text-center font-medium text-sm transition <?= $wide ? 'col-span-2' : '' ?>
                       <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400' ?>">
           <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?>>
           <?= e($c) ?>

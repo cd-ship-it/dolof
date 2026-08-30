@@ -38,7 +38,7 @@ $liftGroup = trim($_POST['lift_group'] ?? '');
 $selectedCodes = array_values(array_filter((array) ($_POST['boxes'] ?? []), 'is_string'));
 $qtyInput      = (array) ($_POST['qty'] ?? []);
 
-$CAMPUSES = ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy'];
+$CAMPUSES = ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy', "I don't regularly attend Crosspoint"];
 
 $old = [
     'first_name' => $first,
