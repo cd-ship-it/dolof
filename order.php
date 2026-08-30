@@ -145,14 +145,19 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     </div>
     <p id="campus-error" class="hidden text-sm font-medium text-red-600">Please choose a campus to continue.</p>
 
-    <label class="block">
-      <span class="font-semibold text-gray-900">Lift Group Name</span>
-      <input type="text" name="lift_group" id="lift-group-input" list="lift-group-options"
-             maxlength="20" autocomplete="off" value="<?= e($old['lift_group'] ?? '') ?>"
-             class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-      <datalist id="lift-group-options"></datalist>
-      <span class="text-xs text-gray-500" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters).</span>
-    </label>
+    <div class="block">
+      <label for="lift-group-input" class="font-semibold text-gray-900">Lift Group Name</label>
+      <div class="relative mt-1">
+        <input type="text" name="lift_group" id="lift-group-input"
+               maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="lift-group-list"
+               value="<?= e($old['lift_group'] ?? '') ?>"
+               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <ul id="lift-group-list" role="listbox"
+            class="hidden absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-md border border-gray-200 bg-white text-sm shadow-lg"></ul>
+      </div>
+      <span class="text-xs text-gray-500 block mt-1" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters).</span>
+    </div>
   </div>
 
   <div class="card flex items-center justify-between">
@@ -221,21 +226,75 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     });
     if (campusChosen()) { campusError.classList.add('hidden'); }
   }
-  // Campus -> life group suggestions. Field stays free text: unknown values are kept.
+  // ── Life Group: custom autocomplete (datalist is unreliable on iOS Safari) ──
+  // Field stays free text — anything the orderer types is kept.
   var LIFE_GROUPS = <?= json_encode($lifeGroupsByCampus, JSON_UNESCAPED_SLASHES) ?>;
+  var ALL_GROUPS = Object.keys(LIFE_GROUPS).reduce(function (acc, k) { return acc.concat(LIFE_GROUPS[k]); }, []);
   var lgInput = document.getElementById('lift-group-input');
-  var lgList = document.getElementById('lift-group-options');
-  var lgHint = document.getElementById('lift-group-hint');
+  var lgList  = document.getElementById('lift-group-list');
+  var lgHint  = document.getElementById('lift-group-hint');
+  var lgIdx   = -1;
 
-  function refreshLifeGroups(userChanged) {
+  function lgGroups() {
     var chosen = form.querySelector('.campus-radio:checked');
-    var groups = (chosen && LIFE_GROUPS[chosen.value]) ? LIFE_GROUPS[chosen.value] : [];
+    return (chosen && LIFE_GROUPS[chosen.value]) ? LIFE_GROUPS[chosen.value] : [];
+  }
+  function lgCloseList() {
+    lgList.classList.add('hidden');
     lgList.innerHTML = '';
-    groups.forEach(function (name) {
-      var o = document.createElement('option');
-      o.value = name;
-      lgList.appendChild(o);
+    lgInput.setAttribute('aria-expanded', 'false');
+    lgIdx = -1;
+  }
+  function lgOpenList() {
+    var groups = lgGroups();
+    if (!groups.length) { lgCloseList(); return; }
+    var q = lgInput.value.trim().toLowerCase();
+    var matches = groups.filter(function (g) { return g.toLowerCase().indexOf(q) !== -1; });
+    if (!matches.length) { lgCloseList(); return; }
+    lgList.innerHTML = '';
+    matches.forEach(function (g) {
+      var li = document.createElement('li');
+      li.textContent = g;
+      li.setAttribute('role', 'option');
+      li.className = 'px-3 py-2 cursor-pointer hover:bg-indigo-50';
+      li._val = g;
+      lgList.appendChild(li);
     });
+    lgList.classList.remove('hidden');
+    lgInput.setAttribute('aria-expanded', 'true');
+    lgIdx = -1;
+  }
+  function lgPick(val) {
+    lgInput.value = val;
+    lgCloseList();
+  }
+  function lgHighlight(items) {
+    items.forEach(function (it, i) { it.classList.toggle('bg-indigo-50', i === lgIdx); });
+    if (lgIdx >= 0) { items[lgIdx].scrollIntoView({ block: 'nearest' }); }
+  }
+
+  lgInput.addEventListener('input', lgOpenList);
+  lgInput.addEventListener('focus', lgOpenList);
+  lgInput.addEventListener('blur', function () { setTimeout(lgCloseList, 150); });
+  lgInput.addEventListener('keydown', function (e) {
+    var items = Array.prototype.slice.call(lgList.querySelectorAll('li'));
+    if (e.key === 'Escape') { lgCloseList(); return; }
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); lgIdx = Math.min(lgIdx + 1, items.length - 1); lgHighlight(items); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); lgIdx = Math.max(lgIdx - 1, 0); lgHighlight(items); }
+    else if (e.key === 'Enter' && lgIdx >= 0) { e.preventDefault(); lgPick(items[lgIdx]._val); }
+  });
+  // pointerdown fires before the input's blur, on both touch and mouse.
+  lgList.addEventListener('pointerdown', function (e) {
+    var li = e.target.closest('li');
+    if (!li) return;
+    e.preventDefault();
+    lgPick(li._val);
+  });
+
+  function lgUpdateForCampus(userChanged) {
+    var chosen = form.querySelector('.campus-radio:checked');
+    var groups = lgGroups();
     if (!chosen) {
       lgHint.textContent = 'Choose your campus above to see its life groups, or type your own (max 20 characters).';
     } else if (groups.length) {
@@ -243,22 +302,19 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     } else {
       lgHint.textContent = 'Enter your life group name (max 20 characters).';
     }
-    // Only wipe the field on an actual campus switch, and only if it held a
-    // suggestion from the previous campus (keep anything the user typed themselves).
-    if (userChanged && lgInput.value && ALL_GROUPS.indexOf(lgInput.value) !== -1
-        && groups.indexOf(lgInput.value) === -1) {
+    // On an actual campus switch, drop a value that was a suggestion from the
+    // previous campus (keep anything the orderer typed themselves).
+    if (userChanged && lgInput.value && ALL_GROUPS.indexOf(lgInput.value) !== -1 && groups.indexOf(lgInput.value) === -1) {
       lgInput.value = '';
     }
+    lgCloseList();
   }
-  var ALL_GROUPS = Object.keys(LIFE_GROUPS).reduce(function (acc, k) {
-    return acc.concat(LIFE_GROUPS[k]);
-  }, []);
 
   form.querySelectorAll('.campus-radio').forEach(function (r) {
-    r.addEventListener('change', function () { syncCampus(); refreshLifeGroups(true); });
+    r.addEventListener('change', function () { syncCampus(); lgUpdateForCampus(true); });
   });
   syncCampus();
-  refreshLifeGroups(false);
+  lgUpdateForCampus(false);
 
   // Submit flow: campus guard, then an order-review step before Stripe.
   var confirmed = false;
