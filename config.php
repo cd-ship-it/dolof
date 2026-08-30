@@ -62,7 +62,9 @@ define('DOLOS_DEFAULT_BOX_PRICE_CENTS', max(0, (int) round((float) env('DOLOS_DE
 define('DOLOS_DEFAULT_BOX_CAP',         max(0, (int) env('DOLOS_DEFAULT_BOX_CAP', 100)));
 define('DOLOS_MAX_QTY_PER_BOX',         max(1, (int) env('DOLOS_MAX_QTY_PER_BOX', 10)));
 
-// Pending-order hold. Keep >= 30 so it outlives the Stripe Checkout session.
-define('HOLD_MINUTES', max(1, (int) env('HOLD_MINUTES', 30)));
-// Stripe Checkout session lifetime (Stripe minimum is 30 minutes).
-define('STRIPE_CHECKOUT_MINUTES', max(30, HOLD_MINUTES));
+// Pending-order hold. Kept a few minutes longer than the Stripe Checkout
+// session so our seat reservation always outlives Stripe's payment window.
+define('HOLD_MINUTES', max(32, (int) env('HOLD_MINUTES', 35)));
+// Stripe Checkout session lifetime. Stripe's minimum is 30 minutes; we use a
+// small buffer over that and stay under HOLD_MINUTES.
+define('STRIPE_CHECKOUT_MINUTES', min(HOLD_MINUTES - 2, max(31, (int) env('STRIPE_CHECKOUT_MINUTES', 32))));
