@@ -85,8 +85,8 @@ layout_head('Order — Deacons Ordination Luncheon');
 
     <div class="grid grid-cols-2 gap-3">
       <?php foreach ($campuses as $c): ?>
-        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-3 py-4 text-center font-medium transition
-                      <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-gray-200 text-gray-700 hover:border-indigo-300' ?>">
+        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-3 py-5 text-center font-medium text-lg transition
+                      <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400' ?>">
           <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?> required>
           <?= e($c) ?>
         </label>
@@ -117,7 +117,7 @@ layout_head('Order — Deacons Ordination Luncheon');
            data-box-row="<?= e($code) ?>">
         <label class="flex items-center gap-3 flex-1 cursor-pointer">
           <input type="checkbox" name="boxes[]" value="<?= e($code) ?>"
-                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 box-check"
+                 class="h-6 w-6 rounded border-gray-400 text-indigo-600 box-check"
                  <?= $checked && !$soldOut ? 'checked' : '' ?> <?= $soldOut ? 'disabled' : '' ?>>
           <span>
             <span class="font-medium text-gray-900"><?= e($b['name']) ?></span>
@@ -158,7 +158,7 @@ layout_head('Order — Deacons Ordination Luncheon');
 
   // Campus radio: highlight the chosen card.
   var SEL = 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300'.split(' ');
-  var UNSEL = 'border-gray-200 text-gray-700 hover:border-indigo-300'.split(' ');
+  var UNSEL = 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400'.split(' ');
   function syncCampus() {
     form.querySelectorAll('.campus-option').forEach(function (opt) {
       var on = opt.querySelector('.campus-radio').checked;
