@@ -93,7 +93,7 @@ layout_head('Order — Deacons Ordination Luncheon');
 
     <div class="grid grid-cols-2 gap-3">
       <?php foreach ($campuses as $c): ?>
-        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-3 py-5 text-center font-medium text-lg transition
+        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-2 py-2 text-center font-medium text-sm transition
                       <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400' ?>">
           <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?>>
           <?= e($c) ?>
@@ -167,9 +167,45 @@ layout_head('Order — Deacons Ordination Luncheon');
   <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p>
 </form>
 
+<div id="confirm-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
+  <div class="my-8 w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-4">
+    <h2 class="text-xl font-bold text-indigo-900">Please review your order</h2>
+
+    <div class="text-base text-gray-800 space-y-1">
+      <div><span class="text-gray-500">Name:</span> <span id="sum-name"></span></div>
+      <div><span class="text-gray-500">Email:</span> <span id="sum-email"></span></div>
+      <div><span class="text-gray-500">Campus:</span> <span id="sum-campus"></span></div>
+      <div id="sum-lg-row"><span class="text-gray-500">Lift Group:</span> <span id="sum-lg"></span></div>
+      <div id="sum-phone-row"><span class="text-gray-500">Phone:</span> <span id="sum-phone"></span></div>
+    </div>
+
+    <table class="w-full text-base border-t border-gray-200 pt-2">
+      <tbody id="sum-rows"></tbody>
+      <tfoot>
+        <tr class="border-t border-gray-200">
+          <td class="pt-3 font-bold">Total to pay</td>
+          <td></td>
+          <td class="pt-3 text-right text-xl font-bold text-indigo-900" id="sum-total">$0.00</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <p class="text-sm text-gray-500">Next you'll be taken to Stripe to pay this amount by card. Your order is confirmed only after payment succeeds.</p>
+
+    <div class="flex flex-col-reverse sm:flex-row gap-3">
+      <button type="button" id="confirm-back"
+              class="flex-1 rounded-md border-2 border-gray-300 px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50">
+        ← Back to edit
+      </button>
+      <button type="button" id="confirm-go" class="btn-primary flex-1 text-center">Confirm &amp; Pay with card</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   var PRICES = <?= json_encode(array_column($boxes, 'price_cents', 'code')) ?>;
+  var BOX_NAMES = <?= json_encode(array_column($boxes, 'name', 'code'), JSON_UNESCAPED_SLASHES) ?>;
   var MAX = <?= (int) $maxQty ?>;
   var form = document.getElementById('order-form');
   var totalEl = document.getElementById('order-total');
@@ -227,14 +263,64 @@ layout_head('Order — Deacons Ordination Luncheon');
   syncCampus();
   refreshLifeGroups(false);
 
-  // Campus is required but its radios are visually hidden, so guard the submit
-  // ourselves (native validation can't focus a hidden control).
+  // Submit flow: campus guard, then an order-review step before Stripe.
+  var confirmed = false;
+  var modal = document.getElementById('confirm-modal');
+  function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+  function buildSummary() {
+    var f = function (n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ''; };
+    var campus = campusChosen() ? campusChosen().value : '';
+    var lg = f('lift_group'), phone = f('phone');
+
+    document.getElementById('sum-name').textContent = (f('first_name') + ' ' + f('last_name')).trim();
+    document.getElementById('sum-email').textContent = f('email');
+    document.getElementById('sum-campus').textContent = campus;
+    document.getElementById('sum-lg').textContent = lg;
+    document.getElementById('sum-lg-row').style.display = lg ? '' : 'none';
+    document.getElementById('sum-phone').textContent = phone;
+    document.getElementById('sum-phone-row').style.display = phone ? '' : 'none';
+
+    var rows = '', total = 0;
+    form.querySelectorAll('.box-check').forEach(function (cb) {
+      if (!cb.checked || cb.disabled) return;
+      var code = cb.value;
+      var qty = parseInt(form.querySelector('[data-qty="' + code + '"]').value, 10) || 1;
+      var sub = (PRICES[code] || 0) * qty;
+      total += sub;
+      rows += '<tr>'
+        + '<td class="py-1 pr-3"><span class="font-semibold text-indigo-700">' + esc(code) + '</span> ' + esc(BOX_NAMES[code] || '') + '</td>'
+        + '<td class="py-1 px-2 text-center whitespace-nowrap">' + qty + ' &times; $' + ((PRICES[code] || 0) / 100).toFixed(2) + '</td>'
+        + '<td class="py-1 pl-3 text-right font-medium">$' + (sub / 100).toFixed(2) + '</td>'
+        + '</tr>';
+    });
+    document.getElementById('sum-rows').innerHTML = rows;
+    document.getElementById('sum-total').textContent = '$' + (total / 100).toFixed(2);
+  }
+
+  function openModal() { buildSummary(); modal.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+  function closeModal() { modal.classList.add('hidden'); document.body.style.overflow = ''; }
+
   form.addEventListener('submit', function (e) {
     if (!campusChosen()) {
       e.preventDefault();
       campusError.classList.remove('hidden');
       campusError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
     }
+    if (!confirmed) {
+      e.preventDefault();
+      openModal();
+    }
+  });
+
+  document.getElementById('confirm-back').addEventListener('click', closeModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
+  document.getElementById('confirm-go').addEventListener('click', function () {
+    confirmed = true;
+    closeModal();
+    if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
   });
 
   // Live US phone formatting: (123) 456-7890
@@ -255,6 +341,16 @@ layout_head('Order — Deacons Ordination Luncheon');
     reformat();
   }
 
+  var BOX_ON = 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-300'.split(' ');
+  function syncBoxHighlight() {
+    form.querySelectorAll('[data-box-row]').forEach(function (row) {
+      var cb = row.querySelector('.box-check');
+      var on = cb && cb.checked && !cb.disabled;
+      BOX_ON.forEach(function (c) { row.classList.toggle(c, on); });
+      row.classList.toggle('border-gray-200', !on);
+    });
+  }
+
   function recalc() {
     var cents = 0, any = false;
     form.querySelectorAll('.box-check').forEach(function (cb) {
@@ -264,6 +360,7 @@ layout_head('Order — Deacons Ordination Luncheon');
     });
     totalEl.textContent = '$' + (cents / 100).toFixed(2);
     payBtn.disabled = !any;
+    syncBoxHighlight();
   }
 
   function applyRemaining(data) {
