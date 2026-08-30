@@ -1,0 +1,9 @@
+.env
+*.swp
+/.*.swp
+/vendor/
+/node_modules/
+.DS_Store
+/logs/*.log
+*.csv
+Untitled

@@ -1,0 +1,14 @@
+{
+  "name": "crosspoint/dolof",
+  "description": "Dolos — Deacons Ordination Luncheon Ordering System",
+  "type": "project",
+  "require": {
+    "php": ">=8.1",
+    "stripe/stripe-php": "^19.3"
+  },
+  "config": {
+    "platform": {
+      "php": "8.1.0"
+    }
+  }
+}

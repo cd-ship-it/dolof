@@ -1,0 +1,187 @@
+<?php
+/**
+ * Public ordering form. Also re-rendered by create-checkout.php on error, which
+ * pre-populates $form_errors (string[]) and $old (assoc: field => value,
+ * plus $old['qty'][code] and $old['boxes'][] selected codes).
+ */
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/boxes.php';
+require_once __DIR__ . '/includes/layout.php';
+
+auth_start_session();
+
+$form_errors = $form_errors ?? [];
+$old         = $old ?? [];
+$boxes       = boxes_with_remaining($pdo);
+$open        = ordering_is_open($pdo);
+$maxQty      = DOLOS_MAX_QTY_PER_BOX;
+$cancelled   = isset($_GET['cancelled']);
+
+layout_head('Order — Deacons Ordination Luncheon');
+?>
+<h1 class="text-2xl font-bold text-indigo-900 mb-1">Luncheon Box Order</h1>
+<p class="text-gray-600 mb-6">Select your lunch boxes and pay online to confirm your order.</p>
+
+<?php if ($cancelled): ?>
+  <div class="card mb-6 border-amber-300 bg-amber-50 text-amber-800">
+    Payment was not completed, so your order was not placed. Your selections are held for a short time — you can try again below.
+  </div>
+<?php endif; ?>
+
+<?php if (!$open): ?>
+  <div class="card text-center">
+    <h2 class="text-lg font-semibold text-gray-800">Ordering is closed</h2>
+    <p class="text-gray-600 mt-2">Online ordering for this event is not currently open. Please contact the church office.</p>
+  </div>
+<?php else: ?>
+
+<?php if ($form_errors): ?>
+  <div class="card mb-6 border-red-300 bg-red-50">
+    <p class="font-semibold text-red-700 mb-1">Please fix the following:</p>
+    <ul class="list-disc list-inside text-sm text-red-700">
+      <?php foreach ($form_errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
+    </ul>
+  </div>
+<?php endif; ?>
+
+<form method="post" action="<?= e(APP_URL) ?>/create-checkout" class="space-y-6" id="order-form">
+  <?= csrf_input() ?>
+
+  <div class="card space-y-4">
+    <h2 class="font-semibold text-gray-900">Your details</h2>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-sm font-medium text-gray-700">First name</span>
+        <input type="text" name="first_name" required maxlength="100" value="<?= e($old['first_name'] ?? '') ?>"
+               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-gray-700">Last name</span>
+        <input type="text" name="last_name" required maxlength="100" value="<?= e($old['last_name'] ?? '') ?>"
+               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-gray-700">Email</span>
+        <input type="email" name="email" required maxlength="200" value="<?= e($old['email'] ?? '') ?>"
+               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-gray-700">Phone</span>
+        <input type="tel" name="phone" required maxlength="50" value="<?= e($old['phone'] ?? '') ?>"
+               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      </label>
+    </div>
+  </div>
+
+  <div class="card space-y-3">
+    <h2 class="font-semibold text-gray-900">Choose lunch boxes</h2>
+    <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p>
+
+    <?php foreach ($boxes as $b):
+      $code     = $b['code'];
+      $checked  = in_array($code, $old['boxes'] ?? [], true);
+      $qtyOld   = (int) ($old['qty'][$code] ?? 1);
+      $qtyOld   = max(1, min($maxQty, $qtyOld));
+      $soldOut  = $b['sold_out'];
+      $capLeft  = min($maxQty, max(0, (int) $b['remaining']));
+    ?>
+      <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 <?= $soldOut ? 'opacity-60' : '' ?>"
+           data-box-row="<?= e($code) ?>">
+        <label class="flex items-center gap-3 flex-1 cursor-pointer">
+          <input type="checkbox" name="boxes[]" value="<?= e($code) ?>"
+                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 box-check"
+                 <?= $checked && !$soldOut ? 'checked' : '' ?> <?= $soldOut ? 'disabled' : '' ?>>
+          <span>
+            <span class="font-medium text-gray-900"><?= e($b['name']) ?></span>
+            <span class="text-gray-500 text-sm">— <?= e(money((int) $b['price_cents'])) ?></span>
+            <span class="block text-xs <?= $soldOut ? 'text-red-600 font-semibold' : 'text-emerald-700' ?>" data-remaining="<?= e($code) ?>">
+              <?= $soldOut ? 'Sold out' : ((int) $b['remaining'] . ' of ' . (int) $b['cap'] . ' left') ?>
+            </span>
+          </span>
+        </label>
+        <select name="qty[<?= e($code) ?>]"
+                class="rounded-md border-gray-300 shadow-sm text-sm qty-select"
+                data-qty="<?= e($code) ?>" <?= $soldOut ? 'disabled' : '' ?>>
+          <?php for ($i = 1; $i <= $maxQty; $i++): ?>
+            <option value="<?= $i ?>" <?= $i === $qtyOld ? 'selected' : '' ?> <?= $i > $capLeft ? 'disabled' : '' ?>><?= $i ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+    <?php endforeach; ?>
+  </div>
+
+  <div class="card flex items-center justify-between">
+    <div>
+      <span class="text-sm text-gray-500">Order total</span>
+      <div class="text-2xl font-bold text-indigo-900" id="order-total">$0.00</div>
+    </div>
+    <button type="submit" class="btn-primary" id="pay-btn" disabled>Pay with card</button>
+  </div>
+  <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p>
+</form>
+
+<script>
+(function () {
+  var PRICES = <?= json_encode(array_column($boxes, 'price_cents', 'code')) ?>;
+  var MAX = <?= (int) $maxQty ?>;
+  var form = document.getElementById('order-form');
+  var totalEl = document.getElementById('order-total');
+  var payBtn = document.getElementById('pay-btn');
+
+  function recalc() {
+    var cents = 0, any = false;
+    form.querySelectorAll('.box-check').forEach(function (cb) {
+      var code = cb.value;
+      var qty = parseInt(form.querySelector('[data-qty="' + code + '"]').value, 10) || 1;
+      if (cb.checked && !cb.disabled) { cents += (PRICES[code] || 0) * qty; any = true; }
+    });
+    totalEl.textContent = '$' + (cents / 100).toFixed(2);
+    payBtn.disabled = !any;
+  }
+
+  function applyRemaining(data) {
+    if (!data || !data.ok) return;
+    if (data.open === false) { location.reload(); return; }
+    Object.keys(data.boxes).forEach(function (code) {
+      var info = data.boxes[code];
+      var label = form.querySelector('[data-remaining="' + code + '"]');
+      var cb = form.querySelector('.box-check[value="' + code + '"]');
+      var sel = form.querySelector('[data-qty="' + code + '"]');
+      if (!label || !cb || !sel) return;
+      var cap = <?= json_encode(array_column($boxes, 'cap', 'code')) ?>[code];
+      if (info.sold_out) {
+        label.textContent = 'Sold out';
+        label.className = 'block text-xs text-red-600 font-semibold';
+        cb.checked = false; cb.disabled = true; sel.disabled = true;
+      } else {
+        label.textContent = info.remaining + ' of ' + cap + ' left';
+        label.className = 'block text-xs text-emerald-700';
+        cb.disabled = false; sel.disabled = false;
+        var allow = Math.min(MAX, info.remaining);
+        Array.prototype.forEach.call(sel.options, function (opt) {
+          opt.disabled = parseInt(opt.value, 10) > allow;
+        });
+        if (parseInt(sel.value, 10) > allow) sel.value = String(allow || 1);
+      }
+    });
+    recalc();
+  }
+
+  form.addEventListener('change', recalc);
+  recalc();
+
+  function poll() {
+    fetch('<?= e(APP_URL) ?>/remaining-counts', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(applyRemaining)
+      .catch(function () {});
+  }
+  poll();
+  setInterval(poll, 15000);
+})();
+</script>
+
+<?php endif; ?>
+<?php layout_footer(); ?>

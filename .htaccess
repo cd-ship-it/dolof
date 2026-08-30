@@ -1,0 +1,27 @@
+RewriteEngine On
+# Served from a subdirectory named "dolof". Change RewriteBase if you deploy elsewhere.
+RewriteBase /dolof
+
+# Never rewrite real files or directories.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Public clean URLs
+RewriteRule ^order$            order.php            [L]
+RewriteRule ^create-checkout$  create-checkout.php  [L]
+RewriteRule ^remaining-counts$ remaining-counts.php [L]
+RewriteRule ^success$          success.php          [L]
+RewriteRule ^cancel$           cancel.php           [L]
+RewriteRule ^stripe-webhook$   stripe-webhook.php   [L]
+
+# Admin clean URLs
+RewriteRule ^admin$                  admin/index.php           [L]
+RewriteRule ^admin/dashboard$        admin/dashboard.php       [L]
+RewriteRule ^admin/orders$           admin/orders.php          [L]
+RewriteRule ^admin/order-view$       admin/order-view.php      [L]
+RewriteRule ^admin/export$           admin/export.php          [L]
+RewriteRule ^admin/logout$           admin/logout.php          [L]
+RewriteRule ^admin/google-callback$  admin/google-callback.php [L]
+
+# Block direct web access to sensitive paths.
+RewriteRule ^(\.env|composer\.(json|lock)|sql/|scripts/|includes/|logs/) - [F,L]
