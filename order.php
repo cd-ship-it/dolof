@@ -63,7 +63,11 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   <?= csrf_input() ?>
 
   <div class="card space-y-3">
-    <h2 class="font-semibold text-gray-900">Choose lunch boxes<span class="text-red-600">*</span> (by Koi Palace 鯉魚門)</h2>
+    <div class="flex flex-col items-center text-center gap-1">
+      <img src="<?= e(APP_URL) ?>/img/koi-palace.webp" alt="Koi Palace 鯉魚門" class="h-24 w-auto">
+      <p class="text-sm font-medium text-gray-600">Proudly brought to you by Koi Palace.</p>
+    </div>
+    <h2 class="font-semibold text-gray-900">Choose lunch boxes<span class="text-red-600">*</span></h2>
     <!-- <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p> -->
     <p class="text-sm text-gray-500">$15.00 per box (Tax included)</p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
