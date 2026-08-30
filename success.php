@@ -79,7 +79,7 @@ layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
   </div>
   <div class="text-center mt-6">
     <a href="<?= e(APP_URL) ?>/order" target="_blank" rel="noopener" class="btn-primary inline-block">Order more</a>
-    <p class="text-xs text-gray-400 mt-2">Opens a fresh order form in a new tab.</p>
+    <!-- <p class="text-xs text-gray-400 mt-2">Opens a fresh order form in a new tab.</p> -->
   </div>
 <?php else: ?>
   <div class="card text-center">

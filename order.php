@@ -64,8 +64,8 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
 
   <div class="card space-y-3">
     <h2 class="font-semibold text-gray-900">Choose lunch boxes (by Koi Palace 鯉魚門)<span class="text-red-600">*</span></h2>
-    <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p>
-
+    <!-- <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p> -->
+    <p class="text-sm text-gray-500">$15.00 per box</p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <?php foreach ($boxes as $b):
         $code       = $b['code'];
@@ -85,8 +85,8 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
                 <span class="inline-flex items-center justify-center h-6 w-6 rounded bg-indigo-100 text-indigo-800 font-bold"><?= e($code) ?></span>
                 <?= e($b['name']) ?>
               </span>
-              <span class="block text-gray-500 text-sm"><?= e(money((int) $b['price_cents'])) ?></span>
-              <span class="block text-xs <?= $soldOut ? 'text-red-600 font-semibold' : 'text-emerald-700' ?>" data-remaining="<?= e($code) ?>">
+              <!-- <span class="block text-gray-500 text-sm"><?= e(money((int) $b['price_cents'])) ?></span> -->
+              <span class="block text-xs <?= $soldOut ? 'text-red-600 font-semibold' : 'text-gray-500' ?>" data-remaining="<?= e($code) ?>">
                 <?= $soldOut ? 'Sold out' : ((int) $b['remaining'] . ' of ' . (int) $b['cap'] . ' left') ?>
               </span>
             </span>
@@ -441,7 +441,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
         if (wrap._setQty) wrap._setQty(0);
       } else {
         label.textContent = info.remaining + ' of ' + cap + ' left';
-        label.className = 'block text-xs text-emerald-700';
+        label.className = 'block text-xs text-gray-500';
         cb.disabled = false;
         wrap.dataset.allow = String(Math.min(MAX, info.remaining));
         if (wrap._setQty) wrap._setQty(qtyOf(code)); // re-clamp to the new max
