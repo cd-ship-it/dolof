@@ -43,8 +43,11 @@ function layout_head(string $title = 'Deacons Ordination Lunch Ordering Form'): 
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-sky-100 text-gray-900">
 <header class="bg-white border-b border-gray-200">
-  <div class="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-    <a href="<?= e($base) ?>/order" class="font-bold text-indigo-800 text-lg">Deacons Ordination Lunch Ordering Form</a>
+  <div class="max-w-3xl mx-auto px-4 py-4 flex flex-col items-center gap-2 text-center">
+    <a href="<?= e($base) ?>/order">
+      <img src="<?= e($base) ?>/img/xpt-logo.png" alt="Crosspoint Church 匯點教會" class="h-12 sm:h-14 w-auto">
+    </a>
+    <span class="font-bold text-indigo-800 text-base sm:text-lg">Deacons Ordination Lunch Ordering Form</span>
   </div>
 </header>
 <main class="max-w-3xl mx-auto px-4 py-8">

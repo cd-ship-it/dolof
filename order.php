@@ -35,7 +35,7 @@ if (is_file($lgFile)) {
 layout_head('Order — Deacons Ordination Lunch Ordering Form');
 ?>
 <!-- <h1 class="text-2xl font-bold text-indigo-900 mb-1">Luncheon Box Order</h1> -->
-<p class="text-gray-600 mb-6">Select your lunch boxes and pay online to confirm your order.</p>
+<!-- <p class="text-gray-600 mb-6">Select your lunch boxes and pay online to confirm your order.</p> -->
 
 <?php if ($cancelled): ?>
   <div class="card mb-6 border-amber-300 bg-amber-50 text-amber-800">
@@ -63,7 +63,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   <?= csrf_input() ?>
 
   <div class="card space-y-3">
-    <h2 class="font-semibold text-gray-900">Choose lunch boxes <span class="text-red-600">*</span></h2>
+    <h2 class="font-semibold text-gray-900">Choose lunch boxes (by Koi Palace 鯉魚門)<span class="text-red-600">*</span></h2>
     <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
