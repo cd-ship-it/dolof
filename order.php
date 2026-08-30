@@ -83,12 +83,6 @@ layout_head('Order — Deacons Ordination Luncheon');
   <div class="card space-y-4">
     <h2 class="font-semibold text-gray-900">Campus</h2>
 
-    <div id="campus-banner"
-         class="<?= $oldCampus === '' ? 'hidden ' : '' ?>rounded-lg bg-indigo-600 text-white text-center py-4 px-3">
-      <div class="text-xs uppercase tracking-wide text-indigo-200">Your campus</div>
-      <div class="text-2xl font-bold" id="campus-banner-name"><?= e($oldCampus) ?></div>
-    </div>
-
     <div class="grid grid-cols-2 gap-3">
       <?php foreach ($campuses as $c): ?>
         <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-3 py-4 text-center font-medium transition
@@ -162,24 +156,15 @@ layout_head('Order — Deacons Ordination Luncheon');
   var totalEl = document.getElementById('order-total');
   var payBtn = document.getElementById('pay-btn');
 
-  // Campus radio: prominent banner + highlight the chosen card.
-  var campusBanner = document.getElementById('campus-banner');
-  var campusBannerName = document.getElementById('campus-banner-name');
+  // Campus radio: highlight the chosen card.
   var SEL = 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300'.split(' ');
   var UNSEL = 'border-gray-200 text-gray-700 hover:border-indigo-300'.split(' ');
   function syncCampus() {
-    var chosen = form.querySelector('.campus-radio:checked');
     form.querySelectorAll('.campus-option').forEach(function (opt) {
       var on = opt.querySelector('.campus-radio').checked;
       SEL.forEach(function (c) { opt.classList.toggle(c, on); });
       UNSEL.forEach(function (c) { opt.classList.toggle(c, !on); });
     });
-    if (chosen) {
-      campusBannerName.textContent = chosen.value;
-      campusBanner.classList.remove('hidden');
-    } else {
-      campusBanner.classList.add('hidden');
-    }
   }
   form.querySelectorAll('.campus-radio').forEach(function (r) {
     r.addEventListener('change', syncCampus);
