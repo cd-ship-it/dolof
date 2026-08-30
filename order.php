@@ -68,19 +68,18 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <?php foreach ($boxes as $b):
-        $code     = $b['code'];
-        $checked  = in_array($code, $old['boxes'] ?? [], true);
-        $qtyOld   = (int) ($old['qty'][$code] ?? 1);
-        $qtyOld   = max(1, min($maxQty, $qtyOld));
-        $soldOut  = $b['sold_out'];
-        $capLeft  = min($maxQty, max(0, (int) $b['remaining']));
+        $code       = $b['code'];
+        $soldOut    = $b['sold_out'];
+        $capLeft    = min($maxQty, max(0, (int) $b['remaining']));
+        $wasChecked = in_array($code, $old['boxes'] ?? [], true) && !$soldOut;
+        $qtyOld     = $wasChecked ? max(1, min($capLeft, (int) ($old['qty'][$code] ?? 1))) : 0;
       ?>
         <div class="rounded-lg border-2 border-gray-200 p-3 <?= $soldOut ? 'opacity-60' : '' ?>"
              data-box-row="<?= e($code) ?>">
           <label class="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" name="boxes[]" value="<?= e($code) ?>"
                    class="mt-0.5 h-6 w-6 shrink-0 rounded border-gray-400 text-indigo-600 box-check"
-                   <?= $checked && !$soldOut ? 'checked' : '' ?> <?= $soldOut ? 'disabled' : '' ?>>
+                   <?= $wasChecked ? 'checked' : '' ?> <?= $soldOut ? 'disabled' : '' ?>>
             <span class="min-w-0">
               <span class="font-semibold text-gray-900">
                 <span class="inline-flex items-center justify-center h-6 w-6 rounded bg-indigo-100 text-indigo-800 font-bold"><?= e($code) ?></span>
@@ -92,15 +91,14 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
               </span>
             </span>
           </label>
-          <div class="mt-2 pl-9 flex items-center gap-2">
-            <label class="text-sm text-gray-600" for="qty-<?= e($code) ?>">Qty</label>
-            <select name="qty[<?= e($code) ?>]" id="qty-<?= e($code) ?>"
-                    class="rounded-md border-gray-300 shadow-sm text-sm qty-select"
-                    data-qty="<?= e($code) ?>" <?= $soldOut ? 'disabled' : '' ?>>
-              <?php for ($i = 1; $i <= $maxQty; $i++): ?>
-                <option value="<?= $i ?>" <?= $i === $qtyOld ? 'selected' : '' ?> <?= $i > $capLeft ? 'disabled' : '' ?>><?= $i ?></option>
-              <?php endfor; ?>
-            </select>
+          <div class="mt-2 pl-9 flex items-center gap-2" data-stepper="<?= e($code) ?>" data-allow="<?= (int) $capLeft ?>">
+            <span class="text-sm text-gray-600 mr-1">Qty</span>
+            <button type="button" data-qty-btn="dec" aria-label="Decrease <?= e($code) ?>"
+                    class="h-8 w-8 shrink-0 rounded-md border-2 border-gray-300 text-xl leading-none font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">&minus;</button>
+            <span data-qty-num class="w-7 text-center text-base font-semibold tabular-nums"><?= (int) $qtyOld ?></span>
+            <button type="button" data-qty-btn="inc" aria-label="Increase <?= e($code) ?>"
+                    class="h-8 w-8 shrink-0 rounded-md border-2 border-gray-300 text-xl leading-none font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">+</button>
+            <input type="hidden" name="qty[<?= e($code) ?>]" value="<?= (int) $qtyOld ?>" data-qty="<?= e($code) ?>">
           </div>
         </div>
       <?php endforeach; ?>
@@ -281,10 +279,11 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     document.getElementById('sum-phone-row').style.display = phone ? '' : 'none';
 
     var rows = '', total = 0;
-    form.querySelectorAll('.box-check').forEach(function (cb) {
-      if (!cb.checked || cb.disabled) return;
-      var code = cb.value;
-      var qty = parseInt(form.querySelector('[data-qty="' + code + '"]').value, 10) || 1;
+    form.querySelectorAll('input[data-qty]').forEach(function (h) {
+      var code = h.dataset.qty;
+      var qty = parseInt(h.value, 10) || 0;
+      var cb = form.querySelector('.box-check[value="' + code + '"]');
+      if (qty <= 0 || (cb && cb.disabled)) return;
       var sub = (PRICES[code] || 0) * qty;
       total += sub;
       rows += '<tr>'
@@ -350,12 +349,18 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     });
   }
 
+  function qtyOf(code) {
+    var h = form.querySelector('input[data-qty="' + code + '"]');
+    return h ? (parseInt(h.value, 10) || 0) : 0;
+  }
+
   function recalc() {
     var cents = 0, any = false;
-    form.querySelectorAll('.box-check').forEach(function (cb) {
-      var code = cb.value;
-      var qty = parseInt(form.querySelector('[data-qty="' + code + '"]').value, 10) || 1;
-      if (cb.checked && !cb.disabled) { cents += (PRICES[code] || 0) * qty; any = true; }
+    form.querySelectorAll('input[data-qty]').forEach(function (h) {
+      var code = h.dataset.qty;
+      var qty = parseInt(h.value, 10) || 0;
+      var cb = form.querySelector('.box-check[value="' + code + '"]');
+      if (qty > 0 && cb && !cb.disabled) { cents += (PRICES[code] || 0) * qty; any = true; }
     });
     totalEl.textContent = '$' + (cents / 100).toFixed(2);
     payBtn.disabled = !any;
@@ -369,40 +374,64 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       var info = data.boxes[code];
       var label = form.querySelector('[data-remaining="' + code + '"]');
       var cb = form.querySelector('.box-check[value="' + code + '"]');
-      var sel = form.querySelector('[data-qty="' + code + '"]');
-      if (!label || !cb || !sel) return;
+      var wrap = form.querySelector('[data-stepper="' + code + '"]');
+      if (!label || !cb || !wrap) return;
       var cap = <?= json_encode(array_column($boxes, 'cap', 'code')) ?>[code];
       if (info.sold_out) {
         label.textContent = 'Sold out';
         label.className = 'block text-xs text-red-600 font-semibold';
-        cb.checked = false; cb.disabled = true; sel.disabled = true;
+        cb.disabled = true;
+        wrap.dataset.allow = '0';
+        if (wrap._setQty) wrap._setQty(0);
       } else {
         label.textContent = info.remaining + ' of ' + cap + ' left';
         label.className = 'block text-xs text-emerald-700';
-        cb.disabled = false; sel.disabled = false;
-        var allow = Math.min(MAX, info.remaining);
-        Array.prototype.forEach.call(sel.options, function (opt) {
-          opt.disabled = parseInt(opt.value, 10) > allow;
-        });
-        if (parseInt(sel.value, 10) > allow) sel.value = String(allow || 1);
+        cb.disabled = false;
+        wrap.dataset.allow = String(Math.min(MAX, info.remaining));
+        if (wrap._setQty) wrap._setQty(qtyOf(code)); // re-clamp to the new max
       }
     });
     recalc();
   }
 
+  // Qty steppers — default 0. +/- adjust; the box checkbox toggles 0 <-> 1.
+  form.querySelectorAll('[data-stepper]').forEach(function (wrap) {
+    var code   = wrap.dataset.stepper;
+    var hidden = wrap.querySelector('input[data-qty]');
+    var numEl  = wrap.querySelector('[data-qty-num]');
+    var dec    = wrap.querySelector('[data-qty-btn="dec"]');
+    var inc    = wrap.querySelector('[data-qty-btn="inc"]');
+    var cb     = form.querySelector('.box-check[value="' + code + '"]');
+
+    function maxAllowed() {
+      return Math.max(0, Math.min(MAX, parseInt(wrap.dataset.allow || MAX, 10)));
+    }
+    function setQty(n) {
+      n = Math.max(0, Math.min(maxAllowed(), n | 0));
+      hidden.value = String(n);
+      numEl.textContent = String(n);
+      if (cb) cb.checked = n > 0;
+      var locked = cb && cb.disabled;
+      dec.disabled = locked || n <= 0;
+      inc.disabled = locked || n >= maxAllowed();
+      recalc();
+    }
+    wrap._setQty = setQty;
+
+    dec.addEventListener('click', function () { setQty((parseInt(hidden.value, 10) || 0) - 1); });
+    inc.addEventListener('click', function () { setQty((parseInt(hidden.value, 10) || 0) + 1); });
+    if (cb) {
+      cb.addEventListener('change', function () {
+        var cur = parseInt(hidden.value, 10) || 0;
+        setQty(cb.checked ? (cur > 0 ? cur : 1) : 0);
+      });
+    }
+
+    setQty(parseInt(hidden.value, 10) || 0);
+  });
+
   form.addEventListener('change', recalc);
   recalc();
-
-  // Touching a Qty control implies you want that box — tick its checkbox so a
-  // quantity is never submitted without its box selected.
-  form.querySelectorAll('.qty-select').forEach(function (sel) {
-    var claim = function () {
-      var cb = form.querySelector('.box-check[value="' + sel.dataset.qty + '"]');
-      if (cb && !cb.disabled && !cb.checked) { cb.checked = true; recalc(); }
-    };
-    sel.addEventListener('click', claim);
-    sel.addEventListener('change', claim);
-  });
 
   function poll() {
     fetch('<?= e(APP_URL) ?>/remaining-counts', { cache: 'no-store' })
