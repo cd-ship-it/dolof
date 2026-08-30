@@ -76,12 +76,12 @@ layout_head('Order — Deacons Ordination Luncheon');
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">Email</span>
+        <span class="text-sm font-medium text-gray-700">Email <span class="text-red-600">*</span></span>
         <input type="email" name="email" required maxlength="200" value="<?= e($old['email'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">Phone <span class="text-gray-400 font-normal">(optional)</span></span>
+        <span class="text-sm font-medium text-gray-700">Phone</span>
         <input type="tel" name="phone" maxlength="50" value="<?= e($old['phone'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
@@ -103,7 +103,7 @@ layout_head('Order — Deacons Ordination Luncheon');
     <p id="campus-error" class="hidden text-sm font-medium text-red-600">Please choose a campus to continue.</p>
 
     <label class="block">
-      <span class="font-semibold text-gray-900">Lift Group Name <span class="text-gray-400 font-normal text-sm">(optional)</span></span>
+      <span class="font-semibold text-gray-900">Lift Group Name</span>
       <input type="text" name="lift_group" id="lift-group-input" list="lift-group-options"
              maxlength="20" autocomplete="off" value="<?= e($old['lift_group'] ?? '') ?>"
              class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -167,11 +167,11 @@ layout_head('Order — Deacons Ordination Luncheon');
   <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p>
 </form>
 
-<div id="confirm-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-  <div class="my-8 w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-4">
-    <h2 class="text-xl font-bold text-indigo-900">Please review your order</h2>
+<div id="confirm-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3">
+  <div class="my-4 w-full max-w-md rounded-xl bg-white p-4 shadow-xl space-y-3 text-sm">
+    <h2 class="text-base font-bold text-indigo-900">Please review your order</h2>
 
-    <div class="text-base text-gray-800 space-y-1">
+    <div class="text-gray-800 space-y-0.5 text-xs">
       <div><span class="text-gray-500">Name:</span> <span id="sum-name"></span></div>
       <div><span class="text-gray-500">Email:</span> <span id="sum-email"></span></div>
       <div><span class="text-gray-500">Campus:</span> <span id="sum-campus"></span></div>
@@ -179,26 +179,25 @@ layout_head('Order — Deacons Ordination Luncheon');
       <div id="sum-phone-row"><span class="text-gray-500">Phone:</span> <span id="sum-phone"></span></div>
     </div>
 
-    <table class="w-full text-base border-t border-gray-200 pt-2">
+    <table class="w-full text-xs border-t border-gray-200 pt-1">
       <tbody id="sum-rows"></tbody>
       <tfoot>
         <tr class="border-t border-gray-200">
-          <td class="pt-3 font-bold">Total to pay</td>
+          <td class="pt-2 font-bold text-sm">Total to pay</td>
           <td></td>
-          <td class="pt-3 text-right text-xl font-bold text-indigo-900" id="sum-total">$0.00</td>
+          <td class="pt-2 text-right text-base font-bold text-indigo-900" id="sum-total">$0.00</td>
         </tr>
       </tfoot>
     </table>
 
-    <p class="text-sm text-gray-500">Next you'll be taken to Stripe to pay this amount by card. Your order is confirmed only after payment succeeds.</p>
+    <button type="button" id="confirm-go" class="btn-primary w-full text-center">Confirm &amp; Pay with card</button>
 
-    <div class="flex flex-col-reverse sm:flex-row gap-3">
-      <button type="button" id="confirm-back"
-              class="flex-1 rounded-md border-2 border-gray-300 px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50">
-        ← Back to edit
-      </button>
-      <button type="button" id="confirm-go" class="btn-primary flex-1 text-center">Confirm &amp; Pay with card</button>
-    </div>
+    <p class="text-xs text-gray-500">Next you'll be taken to Stripe to pay this amount by card. Your order is confirmed only after payment succeeds.</p>
+
+    <button type="button" id="confirm-back"
+            class="w-full rounded-md border-2 border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+      ← Back to edit
+    </button>
   </div>
 </div>
 
