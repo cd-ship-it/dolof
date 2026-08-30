@@ -61,6 +61,8 @@ define('ADMIN_WHITELIST',      env('ADMIN_WHITELIST', ''));
 define('DOLOS_DEFAULT_BOX_PRICE_CENTS', max(0, (int) round((float) env('DOLOS_DEFAULT_BOX_PRICE', 15) * 100)));
 define('DOLOS_DEFAULT_BOX_CAP',         max(0, (int) env('DOLOS_DEFAULT_BOX_CAP', 100)));
 define('DOLOS_MAX_QTY_PER_BOX',         max(1, (int) env('DOLOS_MAX_QTY_PER_BOX', 10)));
+// On the order form, a box only shows "N left" once remaining <= this number.
+define('DOLOS_LOW_STOCK_THRESHOLD',     max(0, (int) env('DOLOS_LOW_STOCK_THRESHOLD', 30)));
 
 // Pending-order hold. Kept a few minutes longer than the Stripe Checkout
 // session so our seat reservation always outlives Stripe's payment window.

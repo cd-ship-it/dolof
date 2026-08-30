@@ -88,7 +88,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
               <!-- <span class="block text-gray-500 text-sm"><?= e(money((int) $b['price_cents'])) ?></span> -->
               <?php
                 $rem = (int) $b['remaining'];
-                $remText = $soldOut ? 'Sold out' : ($rem <= 30 ? $rem . ' left' : '');
+                $remText = $soldOut ? 'Sold out' : ($rem <= DOLOS_LOW_STOCK_THRESHOLD ? $rem . ' left' : '');
               ?>
               <span class="block text-xs min-h-[1em] <?= $soldOut ? 'text-red-600 font-semibold' : 'text-amber-600 font-medium' ?>" data-remaining="<?= e($code) ?>"><?= e($remText) ?></span>
             </span>
@@ -211,6 +211,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   var PRICES = <?= json_encode(array_column($boxes, 'price_cents', 'code')) ?>;
   var BOX_NAMES = <?= json_encode(array_column($boxes, 'name', 'code'), JSON_UNESCAPED_SLASHES) ?>;
   var MAX = <?= (int) $maxQty ?>;
+  var LOW_STOCK = <?= (int) DOLOS_LOW_STOCK_THRESHOLD ?>;
   var form = document.getElementById('order-form');
   var totalEl = document.getElementById('order-total');
   var payBtn = document.getElementById('pay-btn');
@@ -441,7 +442,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
         wrap.dataset.allow = '0';
         if (wrap._setQty) wrap._setQty(0);
       } else {
-        label.textContent = info.remaining <= 30 ? (info.remaining + ' left') : '';
+        label.textContent = info.remaining <= LOW_STOCK ? (info.remaining + ' left') : '';
         label.className = 'block text-xs min-h-[1em] text-amber-600 font-medium';
         cb.disabled = false;
         wrap.dataset.allow = String(Math.min(MAX, info.remaining));
