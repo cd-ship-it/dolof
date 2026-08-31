@@ -1,0 +1,25 @@
+{
+  "name": "deacons",
+  "version": "1.0.0",
+  "description": "Dolos — Deacons Ordination Lunch Ordering System",
+  "main": "index.js",
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i css/input.css -o css/app.css --minify",
+    "watch": "tailwindcss -c tailwind.config.js -i css/input.css -o css/app.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cd-ship-it/dolof.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cd-ship-it/dolof/issues"
+  },
+  "homepage": "https://github.com/cd-ship-it/dolof#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

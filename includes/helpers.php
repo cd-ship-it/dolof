@@ -13,6 +13,16 @@ function money(int $cents): string
     return '$' . number_format($cents / 100, 2);
 }
 
+/** App-relative asset URL with a cache-busting ?v=<mtime>. */
+function asset_url(string $path): string
+{
+    $base = defined('APP_URL') ? APP_URL : '';
+    $rel  = ltrim($path, '/');
+    $file = dirname(__DIR__) . '/' . $rel;
+    $ver  = is_file($file) ? filemtime($file) : time();
+    return $base . '/' . $rel . '?v=' . $ver;
+}
+
 /**
  * Render a dish name as HTML with its English (Latin) runs a little smaller and
  * lighter, so they sit nicely beside Chinese text. Output is fully escaped.

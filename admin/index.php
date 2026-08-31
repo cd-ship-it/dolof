@@ -27,7 +27,7 @@ $googleUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Login — Dolos</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="<?= e(asset_url('css/app.css')) ?>">
 </head>
 <body class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
   <div class="bg-white rounded-xl shadow p-8 w-full max-w-md">

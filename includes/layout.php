@@ -1,6 +1,10 @@
 <?php
 /**
- * Shared page chrome. Tailwind is loaded from the Play CDN (small internal app).
+ * Shared page chrome. Tailwind is a compiled, self-hosted stylesheet
+ * (css/app.css) — no external CDN or web-font request, so the page renders on
+ * iOS Safari even behind Private Relay / content blockers. Rebuild after
+ * changing markup or the inline class strings in <script>:
+ *   npx tailwindcss -c tailwind.config.js -i css/input.css -o css/app.css --minify
  */
 require_once __DIR__ . '/helpers.php';
 
@@ -14,32 +18,7 @@ function layout_head(string $title = 'Deacons Ordination Lunch Ordering Form'): 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($title) ?></title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    /* Larger base type — this is a form for senior members (all rem sizing scales with this). */
-    html { font-size: 120%; }
-    body { font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:.75rem; padding:1.5rem; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-    .btn-primary { background:#4f46e5; color:#fff; font-weight:600; padding:.75rem 1.5rem; border-radius:.5rem; font-size:1.05rem; }
-    .btn-primary:hover { background:#4338ca; }
-    .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
-
-    /* Empty inputs get a soft amber fill + strong border so they read as "fill me in". */
-    input[type="text"], input[type="email"], input[type="tel"], select, textarea {
-      background-color: #fff7ed;
-      border-color: #f59e0b !important;
-      border-width: 2px !important;
-      font-size: 1.05rem;
-    }
-    input[type="text"]:focus, input[type="email"]:focus, input[type="tel"]:focus,
-    select:focus, textarea:focus {
-      background-color: #ffffff;
-      border-color: #4f46e5 !important;
-    }
-  </style>
+  <link rel="stylesheet" href="<?= e(asset_url('css/app.css')) ?>">
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-sky-100 text-gray-900">
 <header class="bg-white border-b border-gray-200">
@@ -69,7 +48,7 @@ function admin_head(string $title, string $active = ''): void
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($title) ?> — Dolos Admin</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="<?= e(asset_url('css/app.css')) ?>">
 </head>
 <body class="min-h-screen bg-gray-100 text-gray-900">
 <nav class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
