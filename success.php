@@ -49,7 +49,15 @@ layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
   <div class="card text-center mb-6">
     <div class="text-4xl mb-2">🎉</div>
     <h1 class="text-2xl font-bold text-indigo-900">Order confirmed!</h1>
-    <p class="text-gray-600 mt-2">A confirmation email is on its way to <strong><?= e($order['email']) ?></strong>.</p>
+    <?php
+      $confirmEmail = trim((string) ($order['email'] ?? ''));
+      $confirmEmailOk = $confirmEmail !== '' && filter_var($confirmEmail, FILTER_VALIDATE_EMAIL);
+    ?>
+    <?php if ($confirmEmailOk): ?>
+      <p class="text-gray-600 mt-2">A confirmation email is on its way to <strong><?= e($confirmEmail) ?></strong>.</p>
+    <?php else: ?>
+      <p class="text-gray-600 mt-2">No email was provided — a confirmation was sent to the church office<?= trim((string) ($order['phone'] ?? '')) !== '' ? ' (phone on file: <strong>' . e($order['phone']) . '</strong>)' : '' ?>.</p>
+    <?php endif; ?>
   </div>
   <div class="card">
     <h2 class="font-semibold text-gray-900 mb-3">Order #<?= (int) $order['id'] ?></h2>

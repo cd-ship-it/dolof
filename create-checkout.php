@@ -71,12 +71,21 @@ if ($campuses === []) {
 $errors = [];
 if ($first === '')                                   { $errors[] = 'First name is required.'; }
 if ($last === '')                                    { $errors[] = 'Last name is required.'; }
-if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) { $errors[] = 'A valid email address is required.'; }
+if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $errors[] = 'Email address is not valid.';
+}
+$emailOk = $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL);
+$phoneOk = strlen(preg_replace('/\D+/', '', $phone)) >= 10;
+if (!$emailOk && !$phoneOk) {
+    $errors[] = 'Please provide either a valid email or a phone number.';
+}
 if (!in_array($campus, $campuses, true))             { $errors[] = 'Please choose a campus.'; }
+if ($liftGroup === '')                               { $errors[] = 'Lift Group Name is required.'; }
 if (mb_strlen($liftGroup) > 20)                      { $errors[] = 'Lift Group Name must be 20 characters or fewer.'; }
 if ($attAdults < 0 || $attAdults > 50)               { $errors[] = 'Adult count must be between 0 and 50.'; }
 if ($attChildren < 0 || $attChildren > 50)           { $errors[] = 'Children (Age 12 and below) must be between 0 and 50.'; }
 if ($attAdults + $attChildren < 1)                   { $errors[] = 'Please enter at least one adult or child attending.'; }
+if ($attChildren > 0 && $attAdults < 1)              { $errors[] = 'At least one adult is required when children are attending.'; }
 if ($attAdults >= 1) {
     foreach ($adultNames as $i => $n) {
         if ($n === '') {
@@ -176,17 +185,21 @@ try {
         ];
     }
 
-    $session = \Stripe\Checkout\Session::create([
+    $sessionParams = [
         'mode'                 => 'payment',
         'line_items'           => $lineItems,
-        'customer_email'       => $email,
         'client_reference_id'  => (string) $orderId,
         'metadata'             => ['order_id' => (string) $orderId, 'source' => 'dolos', 'campus' => $campus, 'lift_group' => $liftGroup],
         'payment_intent_data'  => ['metadata' => ['order_id' => (string) $orderId, 'source' => 'dolos']],
         'expires_at'           => time() + STRIPE_CHECKOUT_MINUTES * 60,
         'success_url'          => APP_URL . '/success?session_id={CHECKOUT_SESSION_ID}',
         'cancel_url'           => APP_URL . '/cancel?order=' . $orderId,
-    ]);
+    ];
+    if ($emailOk) {
+        $sessionParams['customer_email'] = $email;
+    }
+
+    $session = \Stripe\Checkout\Session::create($sessionParams);
 
     order_attach_stripe_session($pdo, $orderId, $session->id);
 

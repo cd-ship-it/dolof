@@ -133,9 +133,11 @@ function payment_finalize_and_notify(PDO $pdo, int $orderId, string $sessionId, 
 function send_order_confirmation_email(PDO $pdo, array $order): bool
 {
     $to = trim((string) $order['email']);
+    $fallbackTo = 'com@crosspointchurchsv.org';
+    $usedFallback = false;
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
-        app_log('high', 'Email', 'invalid recipient, skipped', ['order_id' => $order['id'], 'to' => $to]);
-        return false;
+        $to = $fallbackTo;
+        $usedFallback = true;
     }
 
     $eventTitle    = dolos_setting($pdo, 'event_title', 'Deacons Ordination Lunch Ordering Form');
@@ -153,6 +155,14 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
             e(money((int) $it['unit_price_cents'] * (int) $it['quantity']))
         );
     }
+
+    $phone = trim((string) ($order['phone'] ?? ''));
+    $fallbackNote = $usedFallback
+        ? '<p style="font-size:14px;color:#b45309;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;">'
+          . 'No email was provided with this order. Confirmation sent to the church office.'
+          . ($phone !== '' ? ' Phone on file: <strong>' . e($phone) . '</strong>.' : '')
+          . '</p>'
+        : '';
 
     $templatePath = dirname(__DIR__) . '/emails/order-confirmation.html';
     $template = is_file($templatePath) ? file_get_contents($templatePath) : '<p>Hi {{NAME}}, your order (#{{ORDER_ID}}) is confirmed.</p>{{ITEMS_TABLE}}<p>Total paid: {{TOTAL}}</p>';
@@ -172,6 +182,7 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
         '{{CHILD_NAMES_LINE}}'  => ($cn = decode_attendee_names($order['child_names'] ?? null))
             ? '<br><span style="color:#6b7280;">' . e(implode(', ', $cn)) . '</span>'
             : '',
+        '{{FALLBACK_NOTE}}'  => $fallbackNote,
         '{{EVENT_TITLE}}'    => e($eventTitle),
         '{{EVENT_DATE}}'     => e($eventDate),
         '{{EVENT_LOCATION}}' => e($eventLocation),
@@ -207,7 +218,7 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
         : mail($to, $subject, $body, implode("\r\n", $headers));
 
     app_log('high', 'Email', $sent ? 'confirmation sent' : 'confirmation FAILED', [
-        'order_id' => $order['id'], 'to' => $to,
+        'order_id' => $order['id'], 'to' => $to, 'fallback' => $usedFallback,
     ]);
 
     return $sent;

@@ -64,26 +64,31 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     <h2 class="font-semibold text-gray-900">Your details</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">First name <span class="text-red-600">*</span></span>
+        <span class="text-md font-medium text-gray-700">First name <span class="text-red-600">*</span></span>
         <input type="text" name="first_name" required maxlength="100" value="<?= e($old['first_name'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">Last name <span class="text-red-600">*</span></span>
+        <span class="text-md font-medium text-gray-700">Last name <span class="text-red-600">*</span></span>
         <input type="text" name="last_name" required maxlength="100" value="<?= e($old['last_name'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
+    </div>
+    <hr class="border-gray-200">
+    <p class="text-sm font-medium text-gray-700"><span class="text-red-600">*</span> Email or phone is required (at least one). Email is recommanded so you can receive a electronic receipt.</p>
+    <div class="grid sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">Email <span class="text-red-600">*</span></span>
-        <input type="email" name="email" required maxlength="200" value="<?= e($old['email'] ?? '') ?>"
+        <span class="text-md font-medium text-gray-700">Email</span>
+        <input type="email" name="email" maxlength="200" value="<?= e($old['email'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
       <label class="block">
-        <span class="text-sm font-medium text-gray-700">Phone</span>
+        <span class="text-md font-medium text-gray-700">Phone</span>
         <input type="tel" name="phone" maxlength="50" value="<?= e($old['phone'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
     </div>
+    <p id="contact-error" class="hidden text-sm font-medium text-red-600">Please enter a valid email or a phone number.</p>
   </div>
   <?php
     $attAdultsOld   = max(0, min(50, (int) ($old['attending_adults'] ?? 0)));
@@ -149,11 +154,11 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     <p id="campus-error" class="hidden text-sm font-medium text-red-600">Please choose a campus to continue.</p>
     <?php endif; ?>
 
-    <div class="block">
-      <label for="lift-group-input" class="font-semibold text-gray-900">Lift Group Name</label>
+    <div class="block space-y-2">
+      <label for="lift-group-input" class="font-semibold text-gray-900">Lift Group Name <span class="text-red-600">*</span></label>
       <div class="relative mt-1">
         <input type="text" name="lift_group" id="lift-group-input"
-               maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+               required maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="lift-group-list"
                value="<?= e($old['lift_group'] ?? '') ?>"
                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -161,7 +166,19 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
         <ul id="lift-group-list" role="listbox"
             class="hidden absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-md border border-gray-200 bg-white text-sm shadow-lg"></ul>
       </div>
-      <span class="text-xs text-gray-500 block mt-1" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters).</span>
+      <?php
+        $noLgLabel = "I don't join a Life Group";
+        $noLgValue = 'No Life Group';
+        $noLgSelected = ($old['lift_group'] ?? '') === $noLgValue;
+      ?>
+      <button type="button" id="no-life-group-option"
+              class="w-full rounded-lg border-2 px-2 py-2 text-center font-medium text-sm transition
+                     <?= $noLgSelected ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400' ?>"
+              data-lg-value="<?= e($noLgValue) ?>">
+        <?= e($noLgLabel) ?>
+      </button>
+      <span class="text-xs text-gray-500 block" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters). Required.</span>
+      <p id="lift-group-error" class="hidden text-sm font-medium text-red-600">Please enter a Lift Group Name, or choose “I don't join a Life Group”.</p>
     </div>
   </div>
 
@@ -221,6 +238,9 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
 
   <p id="boxes-over-attend" class="hidden text-sm font-medium text-red-600 text-center -mt-2" role="alert">
     Total lunch boxes cannot exceed total attendance (max one box per person).
+  </p>
+  <p id="boxes-attend-summary" class="hidden text-sm text-gray-600 text-center -mt-2">
+    You have ordered <span id="boxes-attend-boxes">0</span> lunch boxes for <span id="boxes-attend-people">0</span> people.
   </p>
 
   <div class="card flex items-center justify-between transition-opacity duration-200 form-step-locked" data-form-step="checkout" aria-disabled="true">
@@ -302,8 +322,17 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   var lgInput = document.getElementById('lift-group-input');
   var lgList  = document.getElementById('lift-group-list');
   var lgHint  = document.getElementById('lift-group-hint');
+  var lgError = document.getElementById('lift-group-error');
   var lgIdx   = -1;
+  var NO_LIFE_GROUP = 'No Life Group';
+  var noLgOpt = document.getElementById('no-life-group-option');
 
+  function syncNoLifeGroupOption() {
+    if (!noLgOpt) return;
+    var on = lgInput.value.trim() === NO_LIFE_GROUP;
+    SEL.forEach(function (c) { noLgOpt.classList.toggle(c, on); });
+    UNSEL.forEach(function (c) { noLgOpt.classList.toggle(c, !on); });
+  }
   function lgGroups() {
     var chosen = form.querySelector('.campus-radio:checked');
     return (chosen && LIFE_GROUPS[chosen.value]) ? LIFE_GROUPS[chosen.value] : [];
@@ -336,13 +365,20 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   function lgPick(val) {
     lgInput.value = val;
     lgCloseList();
+    syncNoLifeGroupOption();
+    if (lgError) lgError.classList.add('hidden');
+    if (typeof recalc === 'function') recalc();
   }
   function lgHighlight(items) {
     items.forEach(function (it, i) { it.classList.toggle('bg-indigo-50', i === lgIdx); });
     if (lgIdx >= 0) { items[lgIdx].scrollIntoView({ block: 'nearest' }); }
   }
 
-  lgInput.addEventListener('input', lgOpenList);
+  lgInput.addEventListener('input', function () {
+    syncNoLifeGroupOption();
+    if (lgInput.value.trim() && lgError) lgError.classList.add('hidden');
+    lgOpenList();
+  });
   lgInput.addEventListener('focus', lgOpenList);
   lgInput.addEventListener('blur', function () { setTimeout(lgCloseList, 150); });
   lgInput.addEventListener('keydown', function (e) {
@@ -360,22 +396,30 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     e.preventDefault();
     lgPick(li._val);
   });
+  if (noLgOpt) {
+    noLgOpt.addEventListener('click', function (e) {
+      e.preventDefault();
+      lgPick(NO_LIFE_GROUP);
+    });
+  }
+  syncNoLifeGroupOption();
 
   function lgUpdateForCampus(userChanged) {
     var chosen = form.querySelector('.campus-radio:checked');
     var groups = lgGroups();
     if (!chosen) {
-      lgHint.textContent = 'Choose your campus above to see its life groups, or type your own (max 20 characters).';
+      lgHint.textContent = 'Choose your campus above to see its life groups, or type your own (max 20 characters). Required.';
     } else if (groups.length) {
-      lgHint.textContent = 'Start typing to pick a ' + chosen.value + ' life group, or enter your own (max 20 characters).';
+      lgHint.textContent = 'Start typing to pick a ' + chosen.value + ' life group, enter your own, or choose “I don\'t join a Life Group” below.';
     } else {
-      lgHint.textContent = 'Enter your life group name (max 20 characters).';
+      lgHint.textContent = 'Enter your life group name, or choose “I don\'t join a Life Group” below.';
     }
-    lgHint.textContent = "If you want to seat with your LG members, enter your life group name above.";
     // On an actual campus switch, drop a value that was a suggestion from the
-    // previous campus (keep anything the orderer typed themselves).
-    if (userChanged && lgInput.value && ALL_GROUPS.indexOf(lgInput.value) !== -1 && groups.indexOf(lgInput.value) === -1) {
+    // previous campus (keep anything the orderer typed themselves, including No Life Group).
+    if (userChanged && lgInput.value && lgInput.value !== NO_LIFE_GROUP
+        && ALL_GROUPS.indexOf(lgInput.value) !== -1 && groups.indexOf(lgInput.value) === -1) {
       lgInput.value = '';
+      syncNoLifeGroupOption();
     }
     lgCloseList();
   }
@@ -413,10 +457,10 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     var lg = f('lift_group'), phone = f('phone');
 
     document.getElementById('sum-name').textContent = (f('first_name') + ' ' + f('last_name')).trim();
-    document.getElementById('sum-email').textContent = f('email');
+    document.getElementById('sum-email').textContent = f('email') || '(none — confirmation to church office)';
     document.getElementById('sum-campus').textContent = campus;
     document.getElementById('sum-lg').textContent = lg;
-    document.getElementById('sum-lg-row').style.display = lg ? '' : 'none';
+    document.getElementById('sum-lg-row').style.display = '';
     document.getElementById('sum-phone').textContent = phone;
     document.getElementById('sum-phone-row').style.display = phone ? '' : 'none';
     document.getElementById('sum-att-adults').textContent = f('attending_adults') || '0';
@@ -455,6 +499,14 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       if (campusError) {
         campusError.classList.remove('hidden');
         campusError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    if (!fieldVal('lift_group')) {
+      e.preventDefault();
+      if (lgError) {
+        lgError.classList.remove('hidden');
+        lgError.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       return;
     }
@@ -603,7 +655,11 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   function detailsComplete() {
     if (!fieldVal('first_name') || !fieldVal('last_name')) return false;
     var email = fieldVal('email');
-    return !!(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+    var phone = fieldVal('phone');
+    var emailOk = !!(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+    var phoneOk = (phone.replace(/\D/g, '').length >= 10);
+    if (email && !emailOk) return false;
+    return emailOk || phoneOk;
   }
   function attendanceComplete() {
     var adults = attendVal('attending_adults');
@@ -614,7 +670,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     return true;
   }
   function campusComplete() {
-    return CAMPUSES_OK && !!campusChosen();
+    return CAMPUSES_OK && !!campusChosen() && fieldVal('lift_group') !== '';
   }
   function totalAttendance() {
     return attendVal('attending_adults') + attendVal('attending_children');
@@ -647,28 +703,31 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   // (count 1 + name filled from first/last), as if they entered it themselves.
   var detailsWasComplete = false;
   function ensureRegistrantAsAdult1() {
-    var adultsH = form.querySelector('input[data-attend="attending_adults"]');
-    if (!adultsH) return;
-    var wrap = adultsH.closest('[data-attend-stepper]');
     var adults = attendVal('attending_adults');
     var children = attendVal('attending_children');
     if (adults + children === 0) {
-      adultsH.value = '1';
-      if (wrap) {
-        var numEl = wrap.querySelector('[data-attend-num]');
-        var dec = wrap.querySelector('[data-attend-btn="dec"]');
-        var inc = wrap.querySelector('[data-attend-btn="inc"]');
-        var minV = parseInt(wrap.dataset.attendMin || '0', 10);
-        var maxV = parseInt(wrap.dataset.attendMax || '50', 10);
-        if (numEl) numEl.textContent = '1';
-        if (dec) dec.disabled = 1 <= minV;
-        if (inc) inc.disabled = 1 >= maxV;
+      if (typeof attendSetters !== 'undefined' && attendSetters.attending_adults) {
+        attendSetters.attending_adults(1, true);
+      } else {
+        var adultsH = form.querySelector('input[data-attend="attending_adults"]');
+        if (adultsH) {
+          adultsH.value = '1';
+          var wrap = adultsH.closest('[data-attend-stepper]');
+          if (wrap) {
+            var numEl = wrap.querySelector('[data-attend-num]');
+            if (numEl) numEl.textContent = '1';
+          }
+        }
       }
       adults = 1;
     }
     if (adults >= 1) {
       syncNameFields(document.getElementById('adult-names'), adults);
       syncAdult1FromDetails();
+      // Ensure children + is enabled now that an adult is present.
+      if (typeof attendSetters !== 'undefined' && attendSetters.attending_children) {
+        attendSetters.attending_children(attendVal('attending_children'), true);
+      }
     }
   }
   function syncFormSteps() {
@@ -684,9 +743,22 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     var aOk = dOk && attendanceComplete();
     var cOk = aOk && campusComplete();
     var overAttend = totalBoxQty() > totalAttendance();
+    var boxQty = totalBoxQty();
+    var people = totalAttendance();
     var overMsg = document.getElementById('boxes-over-attend');
     if (overMsg) {
       overMsg.classList.toggle('hidden', !(cOk && overAttend));
+    }
+    var sumEl = document.getElementById('boxes-attend-summary');
+    var sumBoxes = document.getElementById('boxes-attend-boxes');
+    var sumPeople = document.getElementById('boxes-attend-people');
+    if (sumEl && sumBoxes && sumPeople) {
+      sumBoxes.textContent = String(boxQty);
+      sumPeople.textContent = String(people);
+      sumEl.classList.toggle('hidden', !cOk);
+      sumEl.classList.toggle('text-red-600', overAttend);
+      sumEl.classList.toggle('font-medium', overAttend);
+      sumEl.classList.toggle('text-gray-600', !overAttend);
     }
     setStepOpen(form.querySelector('[data-form-step="details"]'), true);
     setStepOpen(form.querySelector('[data-form-step="attendance"]'), dOk);
@@ -696,37 +768,68 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   }
 
   // Attendance steppers + name fields (adults / children from 1+).
+  // Children require at least one adult.
+  var attendSetters = {};
   form.querySelectorAll('[data-attend-stepper]').forEach(function (wrap) {
     var hidden = wrap.querySelector('input[data-attend]');
     var numEl  = wrap.querySelector('[data-attend-num]');
     var dec    = wrap.querySelector('[data-attend-btn="dec"]');
     var inc    = wrap.querySelector('[data-attend-btn="inc"]');
+    var kind   = hidden.dataset.attend;
     var minV   = parseInt(wrap.dataset.attendMin || '0', 10);
     var maxV   = parseInt(wrap.dataset.attendMax || '50', 10);
 
-    function setAttend(n) {
+    function refreshButtons(n) {
+      dec.disabled = n <= minV;
+      if (kind === 'attending_children') {
+        inc.disabled = n >= maxV || attendVal('attending_adults') < 1;
+      } else {
+        inc.disabled = n >= maxV;
+      }
+    }
+    function setAttend(n, skipRecalc) {
       n = Math.max(minV, Math.min(maxV, n | 0));
+      if (kind === 'attending_children' && attendVal('attending_adults') < 1) {
+        n = 0;
+      }
       hidden.value = String(n);
       numEl.textContent = String(n);
-      dec.disabled = n <= minV;
-      inc.disabled = n >= maxV;
-      if (hidden.dataset.attend === 'attending_adults') {
+      refreshButtons(n);
+      if (kind === 'attending_adults') {
         syncNameFields(document.getElementById('adult-names'), n);
-      } else if (hidden.dataset.attend === 'attending_children') {
+        if (n < 1 && attendSetters.attending_children) {
+          attendSetters.attending_children(0, true);
+        } else if (attendSetters.attending_children) {
+          // Re-enable/disable children + based on adult count.
+          var ch = attendVal('attending_children');
+          var chWrap = form.querySelector('[data-attend-stepper="attending_children"]');
+          if (chWrap) {
+            var chInc = chWrap.querySelector('[data-attend-btn="inc"]');
+            var chDec = chWrap.querySelector('[data-attend-btn="dec"]');
+            var chMax = parseInt(chWrap.dataset.attendMax || '50', 10);
+            if (chDec) chDec.disabled = ch <= 0;
+            if (chInc) chInc.disabled = ch >= chMax || n < 1;
+          }
+        }
+      } else if (kind === 'attending_children') {
         syncNameFields(document.getElementById('child-names'), n);
       }
-      recalc();
+      if (!skipRecalc) recalc();
     }
+    attendSetters[kind] = setAttend;
     dec.addEventListener('click', function () { setAttend((parseInt(hidden.value, 10) || 0) - 1); });
     inc.addEventListener('click', function () { setAttend((parseInt(hidden.value, 10) || 0) + 1); });
-    // Initial count display only; name fields synced once after all steppers exist.
     var n = Math.max(minV, Math.min(maxV, parseInt(hidden.value, 10) || minV));
+    if (kind === 'attending_children' && attendVal('attending_adults') < 1) n = 0;
     hidden.value = String(n);
     numEl.textContent = String(n);
-    dec.disabled = n <= minV;
-    inc.disabled = n >= maxV;
+    refreshButtons(n);
   });
   syncAllNameFields();
+  // Final pass so children + reflects adult count after both steppers exist.
+  if (attendSetters.attending_adults) {
+    attendSetters.attending_adults(attendVal('attending_adults'), true);
+  }
 
   function recalc() {
     var cents = 0, any = false;
