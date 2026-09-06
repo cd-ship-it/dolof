@@ -2,7 +2,9 @@
 /**
  * Public ordering form. Also re-rendered by create-checkout.php on error, which
  * pre-populates $form_errors (string[]) and $old (assoc: field => value,
- * plus $old['qty'][code] and $old['boxes'][] selected codes).
+ * plus $old['qty'][code], $old['boxes'][] selected codes,
+ * $old['attending_adults'], $old['attending_children'],
+ * $old['adult_names'], $old['child_names']).
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/db.php';
@@ -18,18 +20,14 @@ $boxes       = boxes_with_remaining($pdo);
 $open        = ordering_is_open($pdo);
 $maxQty      = DOLOS_MAX_QTY_PER_BOX;
 $cancelled   = isset($_GET['cancelled']);
-$campuses    = ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy', "I don't regularly attend Crosspoint"];
-$oldCampus   = $old['campus'] ?? '';
+
+// Campuses + life-group suggestions: single source = data/life-groups.json
+$lifeGroupsByCampus = life_groups_by_campus();
+$campuses           = campuses();
+$campusesConfigured = $campuses !== [];
+$oldCampus          = $old['campus'] ?? '';
 if (!in_array($oldCampus, $campuses, true)) {
     $oldCampus = '';
-}
-
-// Campus -> life group suggestions (data/life-groups.json). The field stays free
-// text; these only pre-fill as the orderer types.
-$lifeGroupsByCampus = [];
-$lgFile = __DIR__ . '/data/life-groups.json';
-if (is_file($lgFile)) {
-    $lifeGroupsByCampus = json_decode((string) file_get_contents($lgFile), true) ?: [];
 }
 
 layout_head('Order — Deacons Ordination Lunch Ordering Form');
@@ -62,11 +60,120 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
 <form method="post" action="<?= e(APP_URL) ?>/create-checkout" class="space-y-6" id="order-form">
   <?= csrf_input() ?>
 
-  <div class="card space-y-3">
+  <div class="card space-y-4 transition-opacity duration-200" data-form-step="details">
+    <h2 class="font-semibold text-gray-900">Your details</h2>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-sm font-medium text-gray-700">First name <span class="text-red-600">*</span></span>
+        <input type="text" name="first_name" required maxlength="100" value="<?= e($old['first_name'] ?? '') ?>"
+               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-gray-700">Last name <span class="text-red-600">*</span></span>
+        <input type="text" name="last_name" required maxlength="100" value="<?= e($old['last_name'] ?? '') ?>"
+               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-gray-700">Email <span class="text-red-600">*</span></span>
+        <input type="email" name="email" required maxlength="200" value="<?= e($old['email'] ?? '') ?>"
+               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-gray-700">Phone</span>
+        <input type="tel" name="phone" maxlength="50" value="<?= e($old['phone'] ?? '') ?>"
+               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+      </label>
+    </div>
+  </div>
+  <?php
+    $attAdultsOld   = max(0, min(50, (int) ($old['attending_adults'] ?? 0)));
+    $attChildrenOld = max(0, min(50, (int) ($old['attending_children'] ?? 0)));
+    $adultNamesOld  = array_values(array_map('strval', (array) ($old['adult_names'] ?? [])));
+    $childNamesOld  = array_values(array_map('strval', (array) ($old['child_names'] ?? [])));
+  ?>
+  <div class="card space-y-4 transition-opacity duration-200 form-step-locked" data-form-step="attendance" aria-disabled="true">
+    <h2 class="font-semibold text-gray-900">Attendance <span class="text-red-600">*</span></h2>
+    <div class="space-y-3">
+      <div class="space-y-2">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm font-medium text-gray-700">Adult</span>
+          <div class="flex items-center gap-2" data-attend-stepper="attending_adults" data-attend-min="0" data-attend-max="50">
+            <button type="button" data-attend-btn="dec" aria-label="Decrease adults"
+                    class="h-8 w-8 shrink-0 rounded-md border-2 border-gray-300 text-xl leading-none font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">&minus;</button>
+            <span data-attend-num class="w-7 text-center text-base font-semibold tabular-nums"><?= (int) $attAdultsOld ?></span>
+            <button type="button" data-attend-btn="inc" aria-label="Increase adults"
+                    class="h-8 w-8 shrink-0 rounded-md border-2 border-gray-300 text-xl leading-none font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">+</button>
+            <input type="hidden" name="attending_adults" value="<?= (int) $attAdultsOld ?>" data-attend="attending_adults">
+          </div>
+        </div>
+        <div id="adult-names" class="space-y-2 <?= $attAdultsOld >= 1 ? '' : 'hidden' ?>"
+             data-name-list="adult" data-name-label="Adult" data-name-min="1"
+             data-initial-names="<?= e(json_encode($adultNamesOld, JSON_UNESCAPED_UNICODE)) ?>"></div>
+      </div>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm font-medium text-gray-700">Children <span class="text-gray-500 font-normal">(Age 12 and below)</span></span>
+          <div class="flex items-center gap-2" data-attend-stepper="attending_children" data-attend-min="0" data-attend-max="50">
+            <button type="button" data-attend-btn="dec" aria-label="Decrease children"
+                    class="h-8 w-8 shrink-0 rounded-md border-2 border-gray-300 text-xl leading-none font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">&minus;</button>
+            <span data-attend-num class="w-7 text-center text-base font-semibold tabular-nums"><?= (int) $attChildrenOld ?></span>
+            <button type="button" data-attend-btn="inc" aria-label="Increase children"
+                    class="h-8 w-8 shrink-0 rounded-md border-2 border-gray-300 text-xl leading-none font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">+</button>
+            <input type="hidden" name="attending_children" value="<?= (int) $attChildrenOld ?>" data-attend="attending_children">
+          </div>
+        </div>
+        <div id="child-names" class="space-y-2 <?= $attChildrenOld >= 1 ? '' : 'hidden' ?>"
+             data-name-list="child" data-name-label="Child" data-name-min="1"
+             data-initial-names="<?= e(json_encode($childNamesOld, JSON_UNESCAPED_UNICODE)) ?>"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card space-y-4 transition-opacity duration-200 form-step-locked" data-form-step="campus" aria-disabled="true">
+    <h2 class="font-semibold text-gray-900">Campus <span class="text-red-600">*</span></h2>
+
+    <?php if (!$campusesConfigured): ?>
+      <div class="rounded-lg border border-red-300 bg-red-50 px-3 py-3 text-sm text-red-700">
+        <p class="font-semibold">Campus options are not configured.</p>
+        <p class="mt-1">Please contact the church office — online ordering cannot continue until campuses are defined.</p>
+      </div>
+    <?php else: ?>
+    <div class="grid grid-cols-2 gap-3">
+      <?php foreach ($campuses as $c): $wide = strlen($c) > 16; ?>
+        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-2 py-2 text-center font-medium text-sm transition <?= $wide ? 'col-span-2' : '' ?>
+                      <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400' ?>">
+          <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?>>
+          <?= e($c) ?>
+        </label>
+      <?php endforeach; ?>
+    </div>
+    <p id="campus-error" class="hidden text-sm font-medium text-red-600">Please choose a campus to continue.</p>
+    <?php endif; ?>
+
+    <div class="block">
+      <label for="lift-group-input" class="font-semibold text-gray-900">Lift Group Name</label>
+      <div class="relative mt-1">
+        <input type="text" name="lift_group" id="lift-group-input"
+               maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="lift-group-list"
+               value="<?= e($old['lift_group'] ?? '') ?>"
+               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+               <?= $campusesConfigured ? '' : 'disabled' ?>>
+        <ul id="lift-group-list" role="listbox"
+            class="hidden absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-md border border-gray-200 bg-white text-sm shadow-lg"></ul>
+      </div>
+      <span class="text-xs text-gray-500 block mt-1" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters).</span>
+    </div>
+  </div>
+
+
+
+  <div class="card space-y-3 transition-opacity duration-200 form-step-locked" data-form-step="boxes" aria-disabled="true">
 
     <h2 class="font-semibold text-gray-900">Choose lunch boxes<span class="text-red-600">*</span></h2>
     <!-- <p class="text-sm text-gray-500">Up to <?= (int) $maxQty ?> of each box. Availability updates live.</p> -->
-    <p class="text-sm text-gray-500">$15.00 per box (Tax included)</p>
+    <p class="text-sm text-gray-500">$15.00 per box (Tax incl.) Max one box per person.</p>
+    <p class="text-sm text-gray-500"></p>
+
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <?php foreach ($boxes as $b):
         $code       = $b['code'];
@@ -112,67 +219,16 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     </div>
   </div>
 
-  <div class="card space-y-4">
-    <h2 class="font-semibold text-gray-900">Your details</h2>
-    <div class="grid sm:grid-cols-2 gap-4">
-      <label class="block">
-        <span class="text-sm font-medium text-gray-700">First name <span class="text-red-600">*</span></span>
-        <input type="text" name="first_name" required maxlength="100" value="<?= e($old['first_name'] ?? '') ?>"
-               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-      </label>
-      <label class="block">
-        <span class="text-sm font-medium text-gray-700">Last name <span class="text-red-600">*</span></span>
-        <input type="text" name="last_name" required maxlength="100" value="<?= e($old['last_name'] ?? '') ?>"
-               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-      </label>
-      <label class="block">
-        <span class="text-sm font-medium text-gray-700">Email <span class="text-red-600">*</span></span>
-        <input type="email" name="email" required maxlength="200" value="<?= e($old['email'] ?? '') ?>"
-               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-      </label>
-      <label class="block">
-        <span class="text-sm font-medium text-gray-700">Phone</span>
-        <input type="tel" name="phone" maxlength="50" value="<?= e($old['phone'] ?? '') ?>"
-               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-      </label>
-    </div>
-  </div>
+  <p id="boxes-over-attend" class="hidden text-sm font-medium text-red-600 text-center -mt-2" role="alert">
+    Total lunch boxes cannot exceed total attendance (max one box per person).
+  </p>
 
-  <div class="card space-y-4">
-    <h2 class="font-semibold text-gray-900">Campus <span class="text-red-600">*</span></h2>
-
-    <div class="grid grid-cols-2 gap-3">
-      <?php foreach ($campuses as $c): $wide = strlen($c) > 16; ?>
-        <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-2 py-2 text-center font-medium text-sm transition <?= $wide ? 'col-span-2' : '' ?>
-                      <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400' ?>">
-          <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?>>
-          <?= e($c) ?>
-        </label>
-      <?php endforeach; ?>
-    </div>
-    <p id="campus-error" class="hidden text-sm font-medium text-red-600">Please choose a campus to continue.</p>
-
-    <div class="block">
-      <label for="lift-group-input" class="font-semibold text-gray-900">Lift Group Name</label>
-      <div class="relative mt-1">
-        <input type="text" name="lift_group" id="lift-group-input"
-               maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="lift-group-list"
-               value="<?= e($old['lift_group'] ?? '') ?>"
-               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-        <ul id="lift-group-list" role="listbox"
-            class="hidden absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-md border border-gray-200 bg-white text-sm shadow-lg"></ul>
-      </div>
-      <span class="text-xs text-gray-500 block mt-1" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters).</span>
-    </div>
-  </div>
-
-  <div class="card flex items-center justify-between">
+  <div class="card flex items-center justify-between transition-opacity duration-200 form-step-locked" data-form-step="checkout" aria-disabled="true">
     <div>
       <span class="text-sm text-gray-500">Order total</span>
       <div class="text-2xl font-bold text-indigo-900" id="order-total">$0.00</div>
     </div>
-    <button type="submit" class="btn-primary" id="pay-btn" disabled>Continue</button>
+    <button type="submit" class="btn-primary" id="pay-btn" disabled<?= $campusesConfigured ? '' : ' title="Campus options are not configured"' ?>>Continue</button>
   </div>
   <!-- <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p> -->
 </form>
@@ -187,6 +243,10 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       <div><span class="text-gray-500">Campus:</span> <span id="sum-campus"></span></div>
       <div id="sum-lg-row"><span class="text-gray-500">Lift Group:</span> <span id="sum-lg"></span></div>
       <div id="sum-phone-row"><span class="text-gray-500">Phone:</span> <span id="sum-phone"></span></div>
+      <div><span class="text-gray-500">Adult:</span> <span id="sum-att-adults"></span></div>
+      <div id="sum-adult-names-row" class="hidden pl-3 text-gray-600"><span id="sum-adult-names"></span></div>
+      <div><span class="text-gray-500">Children (12 &amp; under):</span> <span id="sum-att-children"></span></div>
+      <div id="sum-child-names-row" class="hidden pl-3 text-gray-600"><span id="sum-child-names"></span></div>
     </div>
 
     <table class="w-full text-xs border-t border-gray-200 pt-1">
@@ -217,6 +277,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   var BOX_NAMES = <?= json_encode(array_column($boxes, 'name', 'code'), JSON_UNESCAPED_SLASHES) ?>;
   var MAX = <?= (int) $maxQty ?>;
   var LOW_STOCK = <?= (int) DOLOS_LOW_STOCK_THRESHOLD ?>;
+  var CAMPUSES_OK = <?= $campusesConfigured ? 'true' : 'false' ?>;
   var form = document.getElementById('order-form');
   var totalEl = document.getElementById('order-total');
   var payBtn = document.getElementById('pay-btn');
@@ -232,7 +293,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       SEL.forEach(function (c) { opt.classList.toggle(c, on); });
       UNSEL.forEach(function (c) { opt.classList.toggle(c, !on); });
     });
-    if (campusChosen()) { campusError.classList.add('hidden'); }
+    if (campusChosen() && campusError) { campusError.classList.add('hidden'); }
   }
   // ── Life Group: custom autocomplete (datalist is unreliable on iOS Safari) ──
   // Field stays free text — anything the orderer types is kept.
@@ -310,6 +371,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     } else {
       lgHint.textContent = 'Enter your life group name (max 20 characters).';
     }
+    lgHint.textContent = "If you want to seat with your LG members, enter your life group name above.";
     // On an actual campus switch, drop a value that was a suggestion from the
     // previous campus (keep anything the orderer typed themselves).
     if (userChanged && lgInput.value && ALL_GROUPS.indexOf(lgInput.value) !== -1 && groups.indexOf(lgInput.value) === -1) {
@@ -357,6 +419,14 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     document.getElementById('sum-lg-row').style.display = lg ? '' : 'none';
     document.getElementById('sum-phone').textContent = phone;
     document.getElementById('sum-phone-row').style.display = phone ? '' : 'none';
+    document.getElementById('sum-att-adults').textContent = f('attending_adults') || '0';
+    document.getElementById('sum-att-children').textContent = f('attending_children') || '0';
+    var adultNames = collectNames('adult_names[]');
+    var childNames = collectNames('child_names[]');
+    document.getElementById('sum-adult-names').textContent = adultNames.join(', ');
+    document.getElementById('sum-adult-names-row').classList.toggle('hidden', !adultNames.length);
+    document.getElementById('sum-child-names').textContent = childNames.join(', ');
+    document.getElementById('sum-child-names-row').classList.toggle('hidden', !childNames.length);
 
     var rows = '', total = 0;
     form.querySelectorAll('input[data-qty]').forEach(function (h) {
@@ -380,10 +450,12 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   function closeModal() { modal.classList.add('hidden'); document.body.style.overflow = ''; }
 
   form.addEventListener('submit', function (e) {
-    if (!campusChosen()) {
+    if (!CAMPUSES_OK || !campusChosen()) {
       e.preventDefault();
-      campusError.classList.remove('hidden');
-      campusError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (campusError) {
+        campusError.classList.remove('hidden');
+        campusError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
     if (!confirmed) {
@@ -438,14 +510,223 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     var el = form.querySelector('[name="' + n + '"]');
     return el ? el.value.trim() : '';
   }
-  function formIsComplete(anyBox) {
-    if (!anyBox) return false;
-    if (!fieldVal('first_name') || !fieldVal('last_name')) return false;
-    var email = fieldVal('email');
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
-    if (!campusChosen()) return false;
+  function attendVal(name) {
+    var el = form.querySelector('input[data-attend="' + name + '"]');
+    return el ? (parseInt(el.value, 10) || 0) : 0;
+  }
+  function collectNames(fieldName) {
+    return Array.prototype.map.call(
+      form.querySelectorAll('input[name="' + fieldName + '"]'),
+      function (el) { return el.value.trim(); }
+    ).filter(Boolean);
+  }
+  function namesComplete(fieldName, count, minCount) {
+    minCount = minCount == null ? 2 : minCount;
+    if (count < minCount) return true;
+    var inputs = form.querySelectorAll('input[name="' + fieldName + '"]');
+    if (inputs.length !== count) return false;
+    for (var i = 0; i < inputs.length; i++) {
+      if (!inputs[i].value.trim()) return false;
+    }
     return true;
   }
+  function registrantName() {
+    return (fieldVal('first_name') + ' ' + fieldVal('last_name')).replace(/\s+/g, ' ').trim();
+  }
+  function syncNameFields(listEl, count) {
+    if (!listEl) return;
+    var kind = listEl.dataset.nameList;
+    var label = listEl.dataset.nameLabel || kind;
+    var minCount = parseInt(listEl.dataset.nameMin || '2', 10);
+    var fieldName = kind === 'adult' ? 'adult_names[]' : 'child_names[]';
+    var existing = Array.prototype.map.call(
+      listEl.querySelectorAll('input[type="text"]'),
+      function (el) { return el.value; }
+    );
+    if (!existing.length && listEl._savedNames && listEl._savedNames.length) {
+      existing = listEl._savedNames.slice();
+    } else if (!existing.length && listEl.dataset.initialNames) {
+      try { existing = JSON.parse(listEl.dataset.initialNames) || []; } catch (e) { existing = []; }
+      listEl.dataset.initialNames = '[]';
+    }
+    if (count < minCount) {
+      if (existing.length) listEl._savedNames = existing;
+      listEl.innerHTML = '';
+      listEl.classList.add('hidden');
+      return;
+    }
+    listEl.classList.remove('hidden');
+    listEl.innerHTML = '';
+    var reg = registrantName();
+    var prevReg = listEl._lastRegistrantName || '';
+    for (var i = 0; i < count; i++) {
+      var wrap = document.createElement('label');
+      wrap.className = 'block';
+      wrap.innerHTML =
+        '<span class="text-xs font-medium text-gray-600">' + label + ' ' + (i + 1) + ' name <span class="text-red-600">*</span></span>' +
+        '<input type="text" name="' + fieldName + '" required maxlength="100" autocomplete="name" ' +
+        'class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" ' +
+        'value="">';
+      var input = wrap.querySelector('input');
+      var val = existing[i] || '';
+      // Adult 1 defaults from Your details (editable). Keep in sync until the user edits it.
+      if (kind === 'adult' && i === 0) {
+        if (!val.trim() || val.trim() === prevReg) {
+          val = reg;
+        }
+      }
+      if (val) input.value = val;
+      listEl.appendChild(wrap);
+    }
+    if (kind === 'adult') listEl._lastRegistrantName = reg;
+    listEl._savedNames = Array.prototype.map.call(
+      listEl.querySelectorAll('input[type="text"]'),
+      function (el) { return el.value; }
+    );
+  }
+  function syncAdult1FromDetails() {
+    var list = document.getElementById('adult-names');
+    if (!list || list.classList.contains('hidden')) return;
+    var input = list.querySelector('input[name="adult_names[]"]');
+    if (!input) return;
+    var reg = registrantName();
+    var prev = list._lastRegistrantName || '';
+    if (!input.value.trim() || input.value.trim() === prev) {
+      input.value = reg;
+    }
+    list._lastRegistrantName = reg;
+  }
+  function syncAllNameFields() {
+    syncNameFields(document.getElementById('adult-names'), attendVal('attending_adults'));
+    syncNameFields(document.getElementById('child-names'), attendVal('attending_children'));
+  }
+  function detailsComplete() {
+    if (!fieldVal('first_name') || !fieldVal('last_name')) return false;
+    var email = fieldVal('email');
+    return !!(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+  }
+  function attendanceComplete() {
+    var adults = attendVal('attending_adults');
+    var children = attendVal('attending_children');
+    if (adults + children < 1) return false;
+    if (!namesComplete('adult_names[]', adults, 1)) return false;
+    if (!namesComplete('child_names[]', children, 1)) return false;
+    return true;
+  }
+  function campusComplete() {
+    return CAMPUSES_OK && !!campusChosen();
+  }
+  function totalAttendance() {
+    return attendVal('attending_adults') + attendVal('attending_children');
+  }
+  function totalBoxQty() {
+    var total = 0;
+    form.querySelectorAll('input[data-qty]').forEach(function (h) {
+      var qty = parseInt(h.value, 10) || 0;
+      var cb = form.querySelector('.box-check[value="' + h.dataset.qty + '"]');
+      if (qty > 0 && cb && !cb.disabled) total += qty;
+    });
+    return total;
+  }
+  function boxesWithinAttendance() {
+    return totalBoxQty() <= totalAttendance();
+  }
+  function formIsComplete(anyBox) {
+    return detailsComplete() && attendanceComplete() && campusComplete()
+      && !!anyBox && boxesWithinAttendance();
+  }
+
+  function setStepOpen(stepEl, open) {
+    if (!stepEl) return;
+    stepEl.classList.toggle('form-step-locked', !open);
+    stepEl.setAttribute('aria-disabled', open ? 'false' : 'true');
+    if ('inert' in stepEl) stepEl.inert = !open;
+  }
+
+  // When Your details first becomes complete: treat the registrant as Adult 1
+  // (count 1 + name filled from first/last), as if they entered it themselves.
+  var detailsWasComplete = false;
+  function ensureRegistrantAsAdult1() {
+    var adultsH = form.querySelector('input[data-attend="attending_adults"]');
+    if (!adultsH) return;
+    var wrap = adultsH.closest('[data-attend-stepper]');
+    var adults = attendVal('attending_adults');
+    var children = attendVal('attending_children');
+    if (adults + children === 0) {
+      adultsH.value = '1';
+      if (wrap) {
+        var numEl = wrap.querySelector('[data-attend-num]');
+        var dec = wrap.querySelector('[data-attend-btn="dec"]');
+        var inc = wrap.querySelector('[data-attend-btn="inc"]');
+        var minV = parseInt(wrap.dataset.attendMin || '0', 10);
+        var maxV = parseInt(wrap.dataset.attendMax || '50', 10);
+        if (numEl) numEl.textContent = '1';
+        if (dec) dec.disabled = 1 <= minV;
+        if (inc) inc.disabled = 1 >= maxV;
+      }
+      adults = 1;
+    }
+    if (adults >= 1) {
+      syncNameFields(document.getElementById('adult-names'), adults);
+      syncAdult1FromDetails();
+    }
+  }
+  function syncFormSteps() {
+    // Unlock strictly in order: details → attendance → campus → boxes/checkout.
+    var dOk = detailsComplete();
+    if (dOk && !detailsWasComplete) {
+      detailsWasComplete = true;
+      ensureRegistrantAsAdult1();
+    } else if (!dOk) {
+      detailsWasComplete = false;
+    }
+    dOk = detailsComplete();
+    var aOk = dOk && attendanceComplete();
+    var cOk = aOk && campusComplete();
+    var overAttend = totalBoxQty() > totalAttendance();
+    var overMsg = document.getElementById('boxes-over-attend');
+    if (overMsg) {
+      overMsg.classList.toggle('hidden', !(cOk && overAttend));
+    }
+    setStepOpen(form.querySelector('[data-form-step="details"]'), true);
+    setStepOpen(form.querySelector('[data-form-step="attendance"]'), dOk);
+    setStepOpen(form.querySelector('[data-form-step="campus"]'), aOk);
+    setStepOpen(form.querySelector('[data-form-step="boxes"]'), cOk);
+    setStepOpen(form.querySelector('[data-form-step="checkout"]'), cOk);
+  }
+
+  // Attendance steppers + name fields (adults / children from 1+).
+  form.querySelectorAll('[data-attend-stepper]').forEach(function (wrap) {
+    var hidden = wrap.querySelector('input[data-attend]');
+    var numEl  = wrap.querySelector('[data-attend-num]');
+    var dec    = wrap.querySelector('[data-attend-btn="dec"]');
+    var inc    = wrap.querySelector('[data-attend-btn="inc"]');
+    var minV   = parseInt(wrap.dataset.attendMin || '0', 10);
+    var maxV   = parseInt(wrap.dataset.attendMax || '50', 10);
+
+    function setAttend(n) {
+      n = Math.max(minV, Math.min(maxV, n | 0));
+      hidden.value = String(n);
+      numEl.textContent = String(n);
+      dec.disabled = n <= minV;
+      inc.disabled = n >= maxV;
+      if (hidden.dataset.attend === 'attending_adults') {
+        syncNameFields(document.getElementById('adult-names'), n);
+      } else if (hidden.dataset.attend === 'attending_children') {
+        syncNameFields(document.getElementById('child-names'), n);
+      }
+      recalc();
+    }
+    dec.addEventListener('click', function () { setAttend((parseInt(hidden.value, 10) || 0) - 1); });
+    inc.addEventListener('click', function () { setAttend((parseInt(hidden.value, 10) || 0) + 1); });
+    // Initial count display only; name fields synced once after all steppers exist.
+    var n = Math.max(minV, Math.min(maxV, parseInt(hidden.value, 10) || minV));
+    hidden.value = String(n);
+    numEl.textContent = String(n);
+    dec.disabled = n <= minV;
+    inc.disabled = n >= maxV;
+  });
+  syncAllNameFields();
 
   function recalc() {
     var cents = 0, any = false;
@@ -456,6 +737,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       if (qty > 0 && cb && !cb.disabled) { cents += (PRICES[code] || 0) * qty; any = true; }
     });
     totalEl.textContent = '$' + (cents / 100).toFixed(2);
+    syncFormSteps();
     payBtn.disabled = !formIsComplete(any);
     syncBoxHighlight();
   }
@@ -537,7 +819,13 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   });
 
   form.addEventListener('change', recalc);
-  form.addEventListener('input', recalc);   // keep the Continue button in sync as fields are typed
+  form.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t && (t.name === 'first_name' || t.name === 'last_name')) {
+      syncAdult1FromDetails();
+    }
+    recalc();
+  });
   recalc();
 
   function poll() {

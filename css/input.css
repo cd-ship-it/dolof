@@ -32,6 +32,23 @@
   }
   .btn-primary:hover { background: #4338ca; }
   .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Progressive form steps — locked cards read clearly as unavailable. */
+  .form-step-locked {
+    background: #f3f4f6 !important;
+    border-color: #d1d5db !important;
+    box-shadow: none !important;
+    opacity: 0.55;
+    filter: grayscale(1);
+    pointer-events: none;
+    user-select: none;
+  }
+  .form-step-locked h2,
+  .form-step-locked .font-semibold,
+  .form-step-locked .text-gray-700,
+  .form-step-locked .text-gray-900 {
+    color: #9ca3af !important;
+  }
 }
 
 /* Empty inputs get a soft amber fill + strong border so they read as "fill me in". */

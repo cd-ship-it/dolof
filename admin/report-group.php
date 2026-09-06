@@ -88,6 +88,8 @@ admin_head('Report — ' . ($campusLabel !== '' ? $campusLabel : NO_CAMPUS), 're
         <th class="px-3 py-2">Name</th>
         <th class="px-3 py-2">Email</th>
         <th class="px-3 py-2">Phone</th>
+        <th class="px-3 py-2 text-center">Adults</th>
+        <th class="px-3 py-2 text-center">Kids</th>
         <th class="px-3 py-2">Boxes</th>
         <th class="px-3 py-2 text-right">Total</th>
         <th class="px-3 py-2">Status</th>
@@ -104,6 +106,8 @@ admin_head('Report — ' . ($campusLabel !== '' ? $campusLabel : NO_CAMPUS), 're
         <td class="px-3 py-2"><?= e(trim($o['first_name'] . ' ' . $o['last_name'])) ?></td>
         <td class="px-3 py-2"><?= e($o['email']) ?></td>
         <td class="px-3 py-2"><?= e($o['phone']) ?></td>
+        <td class="px-3 py-2 text-center"><?= (int) ($o['attending_adults'] ?? 0) ?></td>
+        <td class="px-3 py-2 text-center"><?= (int) ($o['attending_children'] ?? 0) ?></td>
         <td class="px-3 py-2 font-mono text-xs"><?= e($o['items_summary'] ?? '') ?></td>
         <td class="px-3 py-2 text-right"><?= e(money((int) $o['total_amount_cents'])) ?></td>
         <td class="px-3 py-2"><?= e($o['status']) ?></td>
@@ -111,7 +115,7 @@ admin_head('Report — ' . ($campusLabel !== '' ? $campusLabel : NO_CAMPUS), 're
       </tr>
     <?php endforeach; ?>
     <?php if (!$orders): ?>
-      <tr><td colspan="8" class="px-3 py-6 text-center text-gray-500">No orders in this group.</td></tr>
+      <tr><td colspan="10" class="px-3 py-6 text-center text-gray-500">No orders in this group.</td></tr>
     <?php endif; ?>
     </tbody>
   </table>

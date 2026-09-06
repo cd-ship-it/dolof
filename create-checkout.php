@@ -7,6 +7,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/logger.php';
 require_once __DIR__ . '/includes/boxes.php';
 require_once __DIR__ . '/includes/orders.php';
@@ -35,32 +36,65 @@ $email     = trim($_POST['email'] ?? '');
 $phone     = trim($_POST['phone'] ?? '');
 $campus    = trim($_POST['campus'] ?? '');
 $liftGroup = trim($_POST['lift_group'] ?? '');
+$attAdults   = (int) ($_POST['attending_adults'] ?? 0);
+$attChildren = (int) ($_POST['attending_children'] ?? 0);
+$adultNames  = normalize_attendee_names($_POST['adult_names'] ?? [], $attAdults >= 1 ? $attAdults : 0);
+$childNames  = normalize_attendee_names($_POST['child_names'] ?? [], $attChildren >= 1 ? $attChildren : 0);
 $selectedCodes = array_values(array_filter((array) ($_POST['boxes'] ?? []), 'is_string'));
 $qtyInput      = (array) ($_POST['qty'] ?? []);
 
-$CAMPUSES = ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy', "I don't regularly attend Crosspoint"];
+$campuses = campuses();
 
 $old = [
-    'first_name' => $first,
-    'last_name'  => $last,
-    'email'      => $email,
-    'phone'      => $phone,
-    'campus'     => $campus,
-    'lift_group' => $liftGroup,
-    'boxes'      => $selectedCodes,
-    'qty'        => array_map('intval', $qtyInput),
+    'first_name'          => $first,
+    'last_name'           => $last,
+    'email'               => $email,
+    'phone'               => $phone,
+    'campus'              => $campus,
+    'lift_group'          => $liftGroup,
+    'attending_adults'    => $attAdults,
+    'attending_children'  => $attChildren,
+    'adult_names'         => $adultNames,
+    'child_names'         => $childNames,
+    'boxes'               => $selectedCodes,
+    'qty'                 => array_map('intval', $qtyInput),
 ];
 
 if (!ordering_is_open($pdo)) {
     reject_with(['Online ordering is currently closed.'], $old);
 }
 
+if ($campuses === []) {
+    reject_with(['Campus options are not configured. Please contact the church office.'], $old);
+}
+
 $errors = [];
 if ($first === '')                                   { $errors[] = 'First name is required.'; }
 if ($last === '')                                    { $errors[] = 'Last name is required.'; }
 if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) { $errors[] = 'A valid email address is required.'; }
-if (!in_array($campus, $CAMPUSES, true))             { $errors[] = 'Please choose a campus.'; }
+if (!in_array($campus, $campuses, true))             { $errors[] = 'Please choose a campus.'; }
 if (mb_strlen($liftGroup) > 20)                      { $errors[] = 'Lift Group Name must be 20 characters or fewer.'; }
+if ($attAdults < 0 || $attAdults > 50)               { $errors[] = 'Adult count must be between 0 and 50.'; }
+if ($attChildren < 0 || $attChildren > 50)           { $errors[] = 'Children (Age 12 and below) must be between 0 and 50.'; }
+if ($attAdults + $attChildren < 1)                   { $errors[] = 'Please enter at least one adult or child attending.'; }
+if ($attAdults >= 1) {
+    foreach ($adultNames as $i => $n) {
+        if ($n === '') {
+            $errors[] = 'Please enter a name for Adult ' . ($i + 1) . '.';
+        } elseif (mb_strlen($n) > 100) {
+            $errors[] = 'Adult ' . ($i + 1) . ' name must be 100 characters or fewer.';
+        }
+    }
+}
+if ($attChildren >= 1) {
+    foreach ($childNames as $i => $n) {
+        if ($n === '') {
+            $errors[] = 'Please enter a name for Child ' . ($i + 1) . '.';
+        } elseif (mb_strlen($n) > 100) {
+            $errors[] = 'Child ' . ($i + 1) . ' name must be 100 characters or fewer.';
+        }
+    }
+}
 if ($selectedCodes === [])                           { $errors[] = 'Select at least one lunch box.'; }
 
 // Match selections to active boxes and build order lines.
@@ -90,6 +124,14 @@ foreach ($selectedCodes as $code) {
     ];
 }
 
+$boxTotal = 0;
+foreach ($lines as $line) {
+    $boxTotal += (int) $line['quantity'];
+}
+if ($lines !== [] && $boxTotal > ($attAdults + $attChildren)) {
+    $errors[] = 'Total lunch boxes cannot exceed total attendance (max one box per person).';
+}
+
 if ($errors !== [] || $lines === []) {
     if ($lines === [] && $errors === []) {
         $errors[] = 'Select at least one lunch box.';
@@ -100,12 +142,16 @@ if ($errors !== [] || $lines === []) {
 // Reserve the hold (race-safe) then open Stripe Checkout.
 try {
     $orderId = create_pending_order($pdo, [
-        'first_name' => $first,
-        'last_name'  => $last,
-        'email'      => $email,
-        'phone'      => $phone,
-        'campus'     => $campus,
-        'lift_group' => $liftGroup,
+        'first_name'      => $first,
+        'last_name'       => $last,
+        'email'           => $email,
+        'phone'           => $phone,
+        'campus'          => $campus,
+        'lift_group'      => $liftGroup,
+        'attending_adults'   => $attAdults,
+        'attending_children' => $attChildren,
+        'adult_names'        => $adultNames,
+        'child_names'        => $childNames,
     ], $lines, HOLD_MINUTES);
 } catch (BoxCapacityException $e) {
     app_log('high', 'Order', 'capacity rejection', ['sold_out' => $e->getSoldOutCodes()]);

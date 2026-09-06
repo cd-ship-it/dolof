@@ -4,6 +4,7 @@ require_once dirname(__DIR__) . '/includes/db.php';
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/boxes.php';
 require_once dirname(__DIR__) . '/includes/orders.php';
+require_once dirname(__DIR__) . '/includes/helpers.php';
 require_once dirname(__DIR__) . '/includes/layout.php';
 
 require_admin();
@@ -33,6 +34,14 @@ if (!$order) {
     <div><span class="text-gray-500">Phone:</span> <?= e($order['phone']) ?></div>
     <div><span class="text-gray-500">Campus:</span> <?= e($order['campus']) ?></div>
     <div><span class="text-gray-500">Lift Group:</span> <?= e($order['lift_group']) ?></div>
+    <div><span class="text-gray-500">Adult:</span> <?= (int) ($order['attending_adults'] ?? 0) ?></div>
+    <?php $adultNames = decode_attendee_names($order['adult_names'] ?? null); if ($adultNames): ?>
+    <div class="pl-3 text-gray-600"><?= e(implode(', ', $adultNames)) ?></div>
+    <?php endif; ?>
+    <div><span class="text-gray-500">Children (12 &amp; under):</span> <?= (int) ($order['attending_children'] ?? 0) ?></div>
+    <?php $childNames = decode_attendee_names($order['child_names'] ?? null); if ($childNames): ?>
+    <div class="pl-3 text-gray-600"><?= e(implode(', ', $childNames)) ?></div>
+    <?php endif; ?>
     <div><span class="text-gray-500">Status:</span> <?= e($order['status']) ?></div>
     <div><span class="text-gray-500">Placed:</span> <?= e($order['created_at']) ?></div>
     <div><span class="text-gray-500">Stripe session:</span> <span class="font-mono text-xs"><?= e($order['stripe_session_id']) ?></span></div>

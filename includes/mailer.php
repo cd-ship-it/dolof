@@ -164,6 +164,14 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
         '{{TOTAL}}'          => e(money((int) $order['total_amount_cents'])),
         '{{CAMPUS}}'         => e((string) ($order['campus'] ?? '')),
         '{{LIFT_GROUP}}'     => e((string) ($order['lift_group'] ?? '')),
+        '{{ATTENDING_ADULTS}}'  => (string) (int) ($order['attending_adults'] ?? 0),
+        '{{ATTENDING_CHILDREN}}'=> (string) (int) ($order['attending_children'] ?? 0),
+        '{{ADULT_NAMES_LINE}}'  => ($an = decode_attendee_names($order['adult_names'] ?? null))
+            ? '<br><span style="color:#6b7280;">' . e(implode(', ', $an)) . '</span>'
+            : '',
+        '{{CHILD_NAMES_LINE}}'  => ($cn = decode_attendee_names($order['child_names'] ?? null))
+            ? '<br><span style="color:#6b7280;">' . e(implode(', ', $cn)) . '</span>'
+            : '',
         '{{EVENT_TITLE}}'    => e($eventTitle),
         '{{EVENT_DATE}}'     => e($eventDate),
         '{{EVENT_LOCATION}}' => e($eventLocation),

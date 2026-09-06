@@ -15,6 +15,7 @@
 
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/includes/db.php';
+require_once dirname(__DIR__) . '/includes/helpers.php';
 require_once dirname(__DIR__) . '/includes/boxes.php';
 
 $count = max(1, (int) ($argv[1] ?? 100));
@@ -34,10 +35,13 @@ $givenNames = ['Ka Ho', 'Wai Man', 'Ka Yan', 'Chun Kit', 'Ho Yin', 'Mei Ling', '
 
 $areaCodes = ['510', '408', '925', '650', '415', '669'];
 
-// campus → life groups (from data/life-groups.json)
-$lgFile = dirname(__DIR__) . '/data/life-groups.json';
-$lifeGroups = is_file($lgFile) ? (json_decode((string) file_get_contents($lgFile), true) ?: []) : [];
-$campuses = array_keys($lifeGroups) ?: ['San Leandro', 'Milpitas', 'Pleasanton', 'Tracy'];
+// campus → life groups (single source: data/life-groups.json)
+$lifeGroups = life_groups_by_campus();
+$campuses   = campuses();
+if ($campuses === []) {
+    fwrite(STDERR, "No campuses in data/life-groups.json — define campuses before seeding.\n");
+    exit(1);
+}
 
 $boxes = $pdo->query('SELECT id, code, name, price_cents FROM ' . DOLOS_TBL_BOXES . ' ORDER BY sort_order, code')
              ->fetchAll(PDO::FETCH_ASSOC);
@@ -79,24 +83,45 @@ for ($i = 1; $i <= $count; $i++) {
     // 1–3 distinct boxes, qty 1–4 each
     $pick = (array) array_rand(array_flip($codes), min(count($codes), mt_rand(1, 3)));
     $items = [];
+    $boxCount = 0;
     foreach ($pick as $c) {
         $items[$c] = mt_rand(1, 4);
+        $boxCount += $items[$c];
+    }
+
+    $attAdults   = max(1, min(50, $boxCount + mt_rand(0, 2)));
+    $attChildren = mt_rand(0, 3);
+    $adultNames  = [];
+    $childNames  = [];
+    if ($attAdults >= 1) {
+        for ($n = 0; $n < $attAdults; $n++) {
+            $adultNames[] = $givenNames[array_rand($givenNames)] . ' ' . $surnames[array_rand($surnames)];
+        }
+    }
+    if ($attChildren >= 1) {
+        for ($n = 0; $n < $attChildren; $n++) {
+            $childNames[] = $givenNames[array_rand($givenNames)] . ' ' . $surnames[array_rand($surnames)];
+        }
     }
 
     $status = $statusPlan[($i - 1) % count($statusPlan)];
     $createdAt = date('Y-m-d H:i:s', time() - mt_rand(0, 14 * 86400));
 
     $orders[] = [
-        'n'          => $i,
-        'first'      => $first,
-        'last'       => $last,
-        'email'      => $email,
-        'phone'      => $phone,
-        'campus'     => $campus,
-        'lift_group' => $liftGroup,
-        'status'     => $status,
-        'items'      => $items,            // code => qty
-        'created_at' => $createdAt,
+        'n'                  => $i,
+        'first'              => $first,
+        'last'               => $last,
+        'email'              => $email,
+        'phone'              => $phone,
+        'campus'             => $campus,
+        'lift_group'         => $liftGroup,
+        'attending_adults'   => $attAdults,
+        'attending_children' => $attChildren,
+        'adult_names'        => $adultNames,
+        'child_names'        => $childNames,
+        'status'             => $status,
+        'items'              => $items,            // code => qty
+        'created_at'         => $createdAt,
     ];
 }
 
@@ -106,10 +131,13 @@ $pdo->exec("DELETE FROM " . DOLOS_TBL_ORDERS . " WHERE stripe_session_id LIKE 's
 
 $ordStmt = $pdo->prepare(
     'INSERT INTO ' . DOLOS_TBL_ORDERS . '
-        (first_name, last_name, email, phone, campus, lift_group, status,
+        (first_name, last_name, email, phone, campus, lift_group,
+         attending_adults, attending_children, adult_names, child_names, status,
          total_amount_cents, stripe_session_id, payment_method, hold_expires_at,
          confirmation_email_sent, created_at, updated_at)
-     VALUES (:first, :last, :email, :phone, :campus, :lg, :status, :total, :sid, \'stripe\',
+     VALUES (:first, :last, :email, :phone, :campus, :lg, :att_adults, :att_children,
+             :adult_names, :child_names, :status,
+             :total, :sid, \'stripe\',
              :hold, :emailed, :created, :updated)'
 );
 $itemStmt = $pdo->prepare(
@@ -125,19 +153,23 @@ foreach ($orders as $o) {
         $total += (int) $boxByCode[$c]['price_cents'] * $q;
     }
     $ordStmt->execute([
-        ':first'   => $o['first'],
-        ':last'    => $o['last'],
-        ':email'   => $o['email'],
-        ':phone'   => $o['phone'],
-        ':campus'  => $o['campus'],
-        ':lg'      => $o['lift_group'],
-        ':status'  => $o['status'],
-        ':total'   => $total,
-        ':sid'     => 'seed_' . $o['n'],
-        ':hold'    => $o['status'] === 'pending' ? date('Y-m-d H:i:s', time() + 1800) : null,
-        ':emailed' => $o['status'] === 'paid' ? 1 : 0,
-        ':created' => $o['created_at'],
-        ':updated' => $o['created_at'],
+        ':first'      => $o['first'],
+        ':last'       => $o['last'],
+        ':email'      => $o['email'],
+        ':phone'      => $o['phone'],
+        ':campus'     => $o['campus'],
+        ':lg'         => $o['lift_group'],
+        ':att_adults'   => $o['attending_adults'],
+        ':att_children' => $o['attending_children'],
+        ':adult_names'  => encode_attendee_names($o['adult_names']),
+        ':child_names'  => encode_attendee_names($o['child_names']),
+        ':status'       => $o['status'],
+        ':total'      => $total,
+        ':sid'        => 'seed_' . $o['n'],
+        ':hold'       => $o['status'] === 'pending' ? date('Y-m-d H:i:s', time() + 1800) : null,
+        ':emailed'    => $o['status'] === 'paid' ? 1 : 0,
+        ':created'    => $o['created_at'],
+        ':updated'    => $o['created_at'],
     ]);
     $oid = (int) $pdo->lastInsertId();
     foreach ($o['items'] as $c => $q) {
@@ -172,10 +204,14 @@ foreach ($orders as $o) {
     $hold    = $o['status'] === 'pending' ? 'DATE_ADD(NOW(), INTERVAL 30 MINUTE)' : 'NULL';
     $emailed = $o['status'] === 'paid' ? '1' : '0';
     $sql[] = sprintf(
-        "INSERT INTO dolos_orders (first_name,last_name,email,phone,campus,lift_group,status,total_amount_cents,stripe_session_id,payment_method,hold_expires_at,confirmation_email_sent,created_at,updated_at)\n"
-        . "VALUES (%s,%s,%s,%s,%s,%s,%s,0,%s,'stripe',%s,%s,%s,%s);",
+        "INSERT INTO dolos_orders (first_name,last_name,email,phone,campus,lift_group,attending_adults,attending_children,adult_names,child_names,status,total_amount_cents,stripe_session_id,payment_method,hold_expires_at,confirmation_email_sent,created_at,updated_at)\n"
+        . "VALUES (%s,%s,%s,%s,%s,%s,%d,%d,%s,%s,%s,0,%s,'stripe',%s,%s,%s,%s);",
         $q($o['first']), $q($o['last']), $q($o['email']), $q($o['phone']),
-        $q($o['campus']), $q($o['lift_group']), $q($o['status']),
+        $q($o['campus']), $q($o['lift_group']),
+        (int) $o['attending_adults'], (int) $o['attending_children'],
+        $q(encode_attendee_names($o['adult_names'])),
+        $q(encode_attendee_names($o['child_names'])),
+        $q($o['status']),
         $q('seed_' . $o['n']), $hold, $emailed, $q($o['created_at']), $q($o['created_at'])
     );
     $sql[] = 'SET @oid = LAST_INSERT_ID();';

@@ -23,9 +23,9 @@ function layout_head(string $title = 'Deacons Ordination Lunch Ordering Form'): 
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-sky-100 text-gray-900">
 <header class="bg-white border-b border-gray-200">
   <div class="max-w-3xl mx-auto px-4 py-4 flex flex-col items-center gap-2 text-center">
-    <a href="<?= e($base) ?>/order">
+    <!-- <a href="<?= e($base) ?>/order">
       <img src="<?= e($base) ?>/img/xpt-logo.png" alt="Crosspoint Church 匯點教會" class="h-12 sm:h-14 w-auto">
-    </a>
+    </a> -->
     <span class="font-bold text-indigo-800 text-base sm:text-lg">Deacons Ordination Lunch Ordering Form</span>
   </div>
 </header>
@@ -73,9 +73,13 @@ function layout_footer(): void
 <footer class="max-w-3xl mx-auto px-4 py-8 text-center text-sm text-gray-500">
   <p class="flex items-center justify-center gap-1.5 text-gray-400">
     <span>Payments powered &amp; secured by</span>
-    <img src="<?= e($base) ?>/img/stripe.svg" alt="Stripe" class="h-4 w-auto inline-block align-middle">
   </p>
   <p class="mt-3">
+    <div class="flex items-center justify-center gap-1.5">
+  <img src="<?= e($base) ?>/img/xpt-logo.png" alt="Crosspoint Church 匯點教會" class="h-12 sm:h-14 w-auto">
+      </div>
+
+
     Questions? Email <a href="mailto:cd@crosspointchurchsv.org" class="text-indigo-600 underline">cd@crosspointchurchsv.org</a><br>
     &copy; <?= date('Y') ?> Crosspoint Church
   </p>

@@ -6,6 +6,7 @@ require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/includes/db.php';
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/boxes.php';
+require_once dirname(__DIR__) . '/includes/helpers.php';
 
 require_admin();
 
@@ -35,7 +36,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
 $out = fopen('php://output', 'w');
 fprintf($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
 
-$header = ['Order #', 'First Name', 'Last Name', 'Email', 'Phone', 'Campus', 'Lift Group'];
+$header = ['Order #', 'First Name', 'Last Name', 'Email', 'Phone', 'Campus', 'Lift Group', 'Adults', 'Adult Names', 'Children (12 & under)', 'Child Names'];
 foreach ($codes as $c) {
     $header[] = 'Box ' . $c;
 }
@@ -51,6 +52,10 @@ foreach ($orders as $o) {
         $o['phone'],
         $o['campus'],
         $o['lift_group'],
+        (int) ($o['attending_adults'] ?? 0),
+        implode('; ', decode_attendee_names($o['adult_names'] ?? null)),
+        (int) ($o['attending_children'] ?? 0),
+        implode('; ', decode_attendee_names($o['child_names'] ?? null)),
     ];
     foreach ($codes as $c) {
         $row[] = $qtyByOrder[(int) $o['id']][$c] ?? 0;
