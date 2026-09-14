@@ -57,6 +57,62 @@ function ordering_is_open(PDO $pdo): bool
     return dolos_setting($pdo, 'ordering_open', '1') === '1';
 }
 
+/** Parse ORDERING_START / ORDERING_END from .env (Pacific Time). */
+function ordering_env_time(string $constantOrRaw): ?DateTimeImmutable
+{
+    $raw = trim($constantOrRaw);
+    if ($raw === '') {
+        return null;
+    }
+    try {
+        return new DateTimeImmutable($raw);
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+function ordering_window_start(): ?DateTimeImmutable
+{
+    return ordering_env_time(defined('ORDERING_START') ? ORDERING_START : (string) env('ORDERING_START', ''));
+}
+
+function ordering_window_end(): ?DateTimeImmutable
+{
+    return ordering_env_time(defined('ORDERING_END') ? ORDERING_END : (string) env('ORDERING_END', ''));
+}
+
+/** True when now is within [ORDERING_START, ORDERING_END] (inclusive). Missing bounds are open-ended. */
+function ordering_within_window(?DateTimeInterface $now = null): bool
+{
+    $now = $now instanceof DateTimeInterface
+        ? DateTimeImmutable::createFromInterface($now)
+        : new DateTimeImmutable('now');
+    $start = ordering_window_start();
+    $end   = ordering_window_end();
+    if ($start && $now < $start) {
+        return false;
+    }
+    if ($end && $now > $end) {
+        return false;
+    }
+    return true;
+}
+
+/** Admin toggle open AND within the .env schedule — required to submit checkout. */
+function ordering_accepts_checkout(PDO $pdo): bool
+{
+    return ordering_is_open($pdo) && ordering_within_window();
+}
+
+/** Human-readable Pacific time for banners (e.g. "Sep 20, 2026 at 2:00 PM PT"). */
+function ordering_format_pt(?DateTimeImmutable $dt): string
+{
+    if (!$dt) {
+        return '';
+    }
+    return $dt->format('M j, Y') . ' at ' . ltrim($dt->format('g:i A'), '0') . ' PT';
+}
+
 // ─── Box catalogue ───────────────────────────────────────────────────────────
 
 /** @return array<int,array> active boxes ordered for display */

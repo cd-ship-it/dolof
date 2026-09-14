@@ -16,7 +16,12 @@ try {
             'sold_out'  => (bool) $b['sold_out'],
         ];
     }
-    echo json_encode(['ok' => true, 'open' => ordering_is_open($pdo), 'boxes' => $out]);
+    echo json_encode([
+        'ok'            => true,
+        'open'          => ordering_is_open($pdo),
+        'checkout_open' => ordering_accepts_checkout($pdo),
+        'boxes'         => $out,
+    ]);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Could not load availability.']);

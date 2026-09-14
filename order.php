@@ -17,12 +17,15 @@ auth_start_session();
 $form_errors = $form_errors ?? [];
 $old         = $old ?? [];
 $boxes       = boxes_with_remaining($pdo);
-$open        = ordering_is_open($pdo);
+$adminOpen   = ordering_is_open($pdo);
+$windowOpen  = ordering_within_window();
+$checkoutOk  = $adminOpen && $windowOpen;
+$orderStart  = ordering_window_start();
+$orderEnd    = ordering_window_end();
 $maxQty      = DOLOS_MAX_QTY_PER_BOX;
 $cancelled   = isset($_GET['cancelled']);
 
-// Campuses + life-group suggestions: single source = data/life-groups.json
-$lifeGroupsByCampus = life_groups_by_campus();
+// Campuses: single source = data/life-groups.json keys
 $campuses           = campuses();
 $campusesConfigured = $campuses !== [];
 $oldCampus          = $old['campus'] ?? '';
@@ -41,12 +44,66 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   </div>
 <?php endif; ?>
 
-<?php if (!$open): ?>
-  <div class="card text-center">
-    <h2 class="text-lg font-semibold text-gray-800">Ordering is closed</h2>
-    <p class="text-gray-600 mt-2">Online ordering for this event is not currently open. Please contact the church office.</p>
-  </div>
-<?php else: ?>
+<?php
+  // Banner + countdown for the .env ordering window (form is always browsable).
+  $nowTs = time();
+  $bannerClass = 'border-amber-300 bg-amber-50 text-amber-900';
+  $bannerTitle = 'Ordering is not open yet';
+  $bannerBody  = $orderStart
+      ? 'You can explore the form now. Checkout opens ' . ordering_format_pt($orderStart) . '.'
+      : 'You can explore the form now. Checkout is not available yet.';
+  $countdownTarget = $orderStart;
+  $countdownLabel  = 'Opens in';
+  if ($windowOpen) {
+      $bannerClass = 'border-emerald-300 bg-emerald-50 text-emerald-900';
+      $bannerTitle = 'Ordering is open';
+      $bannerBody  = $orderEnd
+          ? 'Place your order anytime until ' . ordering_format_pt($orderEnd) . '.'
+          : 'You can place your order now.';
+      $countdownTarget = $orderEnd;
+      $countdownLabel  = 'Closes in';
+  } elseif ($orderEnd && $nowTs > $orderEnd->getTimestamp()) {
+      $bannerClass = 'border-red-300 bg-red-50 text-red-900';
+      $bannerTitle = 'Ordering has closed';
+      $bannerBody  = 'You can still look around, but checkout is no longer available. Window ended '
+          . ordering_format_pt($orderEnd) . '.';
+      $countdownTarget = null;
+      $countdownLabel  = '';
+  }
+  if (!$adminOpen) {
+      $bannerClass = 'border-red-300 bg-red-50 text-red-900';
+      $bannerTitle = 'Ordering is temporarily closed';
+      $bannerBody  = 'You can explore the form, but checkout is paused by the church office.';
+      $countdownTarget = null;
+      $countdownLabel  = '';
+  }
+
+  $countdownText = '';
+  if ($countdownTarget) {
+      $remain = max(0, $countdownTarget->getTimestamp() - $nowTs);
+      $d = intdiv($remain, 86400);
+      $h = intdiv($remain % 86400, 3600);
+      $m = intdiv($remain % 3600, 60);
+      $s = $remain % 60;
+      $parts = [];
+      if ($d > 0) {
+          $parts[] = $d . 'd';
+      }
+      $parts[] = sprintf('%02dh', $h);
+      $parts[] = sprintf('%02dm', $m);
+      $parts[] = sprintf('%02ds', $s);
+      $countdownText = $countdownLabel . ' ' . implode(' ', $parts);
+  }
+?>
+<div id="ordering-window-banner" class="card mb-6 <?= e($bannerClass) ?>"
+     data-start-ms="<?= $orderStart ? e((string) ($orderStart->getTimestamp() * 1000)) : '' ?>"
+     data-end-ms="<?= $orderEnd ? e((string) ($orderEnd->getTimestamp() * 1000)) : '' ?>"
+     data-admin-open="<?= $adminOpen ? '1' : '0' ?>">
+  <p class="font-semibold text-base" id="ordering-banner-title"><?= e($bannerTitle) ?></p>
+  <p class="mt-1 text-sm" id="ordering-banner-body"><?= e($bannerBody) ?></p>
+  <p class="mt-2 text-sm font-medium tabular-nums<?= $countdownText === '' ? ' hidden' : '' ?>"
+     id="ordering-countdown"><?= e($countdownText) ?></p>
+</div>
 
 <?php if ($form_errors): ?>
   <div class="card mb-6 border-red-300 bg-red-50">
@@ -75,7 +132,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       </label>
     </div>
     <hr class="border-gray-200">
-    <p class="text-sm font-medium text-gray-700"><span class="text-red-600">*</span> Email or phone is required (at least one). Email is recommanded so you can receive a electronic receipt.</p>
+    <p class="text-sm font-medium text-gray-700"><span class="text-red-600">*</span> Email or phone is required (at least one). Email is recommanded so you can receive an electronic receipt.</p>
     <div class="grid sm:grid-cols-2 gap-4">
       <label class="block">
         <span class="text-md font-medium text-gray-700">Email</span>
@@ -156,29 +213,24 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
 
     <div class="block space-y-2">
       <label for="lift-group-input" class="font-semibold text-gray-900">Lift Group Name <span class="text-red-600">*</span></label>
-      <div class="relative mt-1">
-        <input type="text" name="lift_group" id="lift-group-input"
-               required maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="lift-group-list"
-               value="<?= e($old['lift_group'] ?? '') ?>"
-               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-               <?= $campusesConfigured ? '' : 'disabled' ?>>
-        <ul id="lift-group-list" role="listbox"
-            class="hidden absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-md border border-gray-200 bg-white text-sm shadow-lg"></ul>
-      </div>
       <?php
         $noLgLabel = "I don't join a Life Group";
         $noLgValue = 'No Life Group';
         $noLgSelected = ($old['lift_group'] ?? '') === $noLgValue;
       ?>
-      <button type="button" id="no-life-group-option"
-              class="w-full rounded-lg border-2 px-2 py-2 text-center font-medium text-sm transition
-                     <?= $noLgSelected ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-400 bg-amber-50 text-gray-800 hover:border-indigo-400' ?>"
-              data-lg-value="<?= e($noLgValue) ?>">
-        <?= e($noLgLabel) ?>
-      </button>
-      <span class="text-xs text-gray-500 block" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters). Required.</span>
-      <p id="lift-group-error" class="hidden text-sm font-medium text-red-600">Please enter a Lift Group Name, or choose “I don't join a Life Group”.</p>
+      <input type="text" name="lift_group" id="lift-group-input"
+             required maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+             value="<?= e($old['lift_group'] ?? '') ?>"
+             class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500<?= $noLgSelected ? ' lg-field-locked' : '' ?>"
+             <?= $noLgSelected ? 'readonly' : '' ?>
+             <?= $campusesConfigured ? '' : 'disabled' ?>>
+      <label class="mt-2 flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
+        <input type="checkbox" id="no-life-group-option" class="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+               <?= $noLgSelected ? 'checked' : '' ?>
+               <?= $campusesConfigured ? '' : 'disabled' ?>>
+        <span><?= e($noLgLabel) ?></span>
+      </label>
+      <!-- <p id="lift-group-error" class="hidden text-sm font-medium text-red-600">Please enter a Lift Group Name, or check “I don't join a Life Group”.</p> -->
     </div>
   </div>
 
@@ -192,13 +244,23 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     <p class="text-sm text-gray-500"></p>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <?php foreach ($boxes as $b):
+      <?php
+        $boxCount = count($boxes);
+        $boxIndex = 0;
+        foreach ($boxes as $b):
+        $boxIndex++;
         $code       = $b['code'];
         $soldOut    = $b['sold_out'];
         $capLeft    = min($maxQty, max(0, (int) $b['remaining']));
         $wasChecked = in_array($code, $old['boxes'] ?? [], true) && !$soldOut;
         $qtyOld     = $wasChecked ? max(1, min($capLeft, (int) ($old['qty'][$code] ?? 1))) : 0;
+        if ($boxIndex === $boxCount):
       ?>
+        <div class="col-span-full flex flex-col items-center text-center gap-1 py-1">
+          <img src="<?= e(APP_URL) ?>/img/koi-palace.webp" alt="Koi Palace 鯉魚門" class="h-16 w-auto">
+          <p class="text-xs font-medium text-black-400">以上四款餐點由Milpitas鯉魚門提供</p>
+        </div>
+      <?php endif; ?>
         <div class="rounded-lg border-2 border-gray-200 p-3 <?= $soldOut ? 'opacity-60' : 'cursor-pointer select-none' ?>"
              data-box-row="<?= e($code) ?>">
           <label class="flex items-start gap-3 <?= $soldOut ? '' : 'cursor-pointer' ?>">
@@ -230,10 +292,10 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
         </div>
       <?php endforeach; ?>
     </div>
-    <div class="flex flex-col items-center text-center gap-1">
-      <img src="<?= e(APP_URL) ?>/img/koi-palace.webp" alt="Koi Palace 鯉魚門" class="h-16 w-auto">
-      <p class="text-xs font-medium text-gray-400">Proudly brought to you by Koi Palace.</p>
-    </div>
+        <div class="col-span-full flex flex-col items-center text-center gap-1 py-1">
+          <p class="text-xs font-medium text-red-600">** 齋菜餐點由另一食肆提供 **</p>
+     
+        </div>
   </div>
 
   <p id="boxes-over-attend" class="hidden text-sm font-medium text-red-600 text-center -mt-2" role="alert">
@@ -248,7 +310,9 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       <span class="text-sm text-gray-500">Order total</span>
       <div class="text-2xl font-bold text-indigo-900" id="order-total">$0.00</div>
     </div>
-    <button type="submit" class="btn-primary" id="pay-btn" disabled<?= $campusesConfigured ? '' : ' title="Campus options are not configured"' ?>>Continue</button>
+    <button type="submit" class="btn-primary" id="pay-btn" disabled
+            data-checkout-ok="<?= $checkoutOk ? '1' : '0' ?>"
+            title="<?= !$campusesConfigured ? 'Campus options are not configured' : ($checkoutOk ? '' : 'Checkout is only available during the ordering window') ?>">Continue</button>
   </div>
   <!-- <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p> -->
 </form>
@@ -298,9 +362,124 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   var MAX = <?= (int) $maxQty ?>;
   var LOW_STOCK = <?= (int) DOLOS_LOW_STOCK_THRESHOLD ?>;
   var CAMPUSES_OK = <?= $campusesConfigured ? 'true' : 'false' ?>;
+  var checkoutOk = <?= $checkoutOk ? 'true' : 'false' ?>;
   var form = document.getElementById('order-form');
   var totalEl = document.getElementById('order-total');
   var payBtn = document.getElementById('pay-btn');
+
+  // Live US phone formatting: (123) 456-7890 — register early so later script
+  // errors cannot skip it.
+  var phoneEl = form.querySelector('input[name="phone"]');
+  function formatPhone(v) {
+    var d = (v || '').replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '1') { d = d.slice(1); }
+    d = d.slice(0, 10);
+    if (d.length === 0) return '';
+    if (d.length < 4) return '(' + d;
+    if (d.length < 7) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
+    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+  }
+  if (phoneEl) {
+    var reformatPhone = function () { phoneEl.value = formatPhone(phoneEl.value); };
+    phoneEl.addEventListener('input', reformatPhone);
+    phoneEl.addEventListener('blur', reformatPhone);
+    reformatPhone();
+  }
+
+  // Ordering window banner + live countdown (Continue stays locked outside the window).
+  (function setupOrderingWindow() {
+    var banner = document.getElementById('ordering-window-banner');
+    var titleEl = document.getElementById('ordering-banner-title');
+    var bodyEl = document.getElementById('ordering-banner-body');
+    var cdEl = document.getElementById('ordering-countdown');
+    if (!banner || !titleEl || !bodyEl || !cdEl) return;
+
+    function readMs(attr) {
+      var raw = banner.getAttribute(attr);
+      if (!raw) return NaN;
+      var n = Number(raw);
+      return isFinite(n) ? n : NaN;
+    }
+    var startMs = readMs('data-start-ms');
+    var endMs = readMs('data-end-ms');
+    var adminOpen = banner.getAttribute('data-admin-open') === '1';
+
+    function fmtPt(ms) {
+      if (!isFinite(ms)) return '';
+      try {
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Los_Angeles',
+          month: 'short', day: 'numeric', year: 'numeric',
+          hour: 'numeric', minute: '2-digit'
+        }).format(new Date(ms)) + ' PT';
+      } catch (err) {
+        return new Date(ms).toLocaleString();
+      }
+    }
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    function fmtRemain(ms) {
+      var s = Math.max(0, Math.floor(ms / 1000));
+      var d = Math.floor(s / 86400); s -= d * 86400;
+      var h = Math.floor(s / 3600); s -= h * 3600;
+      var m = Math.floor(s / 60); s -= m * 60;
+      var parts = [];
+      if (d > 0) parts.push(d + 'd');
+      parts.push(pad(h) + 'h', pad(m) + 'm', pad(s) + 's');
+      return parts.join(' ');
+    }
+    function setBannerClasses(kind) {
+      banner.className = 'card mb-6 ' + ({
+        soon: 'border-amber-300 bg-amber-50 text-amber-900',
+        open: 'border-emerald-300 bg-emerald-50 text-emerald-900',
+        closed: 'border-red-300 bg-red-50 text-red-900'
+      }[kind] || 'border-amber-300 bg-amber-50 text-amber-900');
+    }
+    function tick() {
+      var now = Date.now();
+      var within = true;
+      if (isFinite(startMs) && now < startMs) within = false;
+      if (isFinite(endMs) && now > endMs) within = false;
+      checkoutOk = adminOpen && within;
+      if (payBtn) payBtn.setAttribute('data-checkout-ok', checkoutOk ? '1' : '0');
+
+      if (!adminOpen) {
+        setBannerClasses('closed');
+        titleEl.textContent = 'Ordering is temporarily closed';
+        bodyEl.textContent = 'You can explore the form, but checkout is paused by the church office.';
+        cdEl.textContent = '';
+        cdEl.classList.add('hidden');
+      } else if (isFinite(startMs) && now < startMs) {
+        setBannerClasses('soon');
+        titleEl.textContent = 'Ordering is not open yet';
+        bodyEl.textContent = 'You can explore the form now. Checkout opens ' + fmtPt(startMs) + '.';
+        cdEl.textContent = 'Opens in ' + fmtRemain(startMs - now);
+        cdEl.classList.remove('hidden');
+      } else if (isFinite(endMs) && now > endMs) {
+        setBannerClasses('closed');
+        titleEl.textContent = 'Ordering has closed';
+        bodyEl.textContent = 'You can still look around, but checkout is no longer available. Window ended ' + fmtPt(endMs) + '.';
+        cdEl.textContent = '';
+        cdEl.classList.add('hidden');
+      } else {
+        setBannerClasses('open');
+        titleEl.textContent = 'Ordering is open';
+        bodyEl.textContent = isFinite(endMs)
+          ? 'Place your order anytime until ' + fmtPt(endMs) + '.'
+          : 'You can place your order now.';
+        if (isFinite(endMs)) {
+          cdEl.textContent = 'Closes in ' + fmtRemain(endMs - now);
+          cdEl.classList.remove('hidden');
+        } else {
+          cdEl.textContent = '';
+          cdEl.classList.add('hidden');
+        }
+      }
+
+      try { if (typeof recalc === 'function') recalc(); } catch (err) {}
+    }
+    tick();
+    setInterval(tick, 1000);
+  })();
 
   // Campus radio: highlight the chosen card.
   var campusError = document.getElementById('campus-error');
@@ -315,120 +494,51 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     });
     if (campusChosen() && campusError) { campusError.classList.add('hidden'); }
   }
-  // ── Life Group: custom autocomplete (datalist is unreliable on iOS Safari) ──
-  // Field stays free text — anything the orderer types is kept.
-  var LIFE_GROUPS = <?= json_encode($lifeGroupsByCampus, JSON_UNESCAPED_SLASHES) ?>;
-  var ALL_GROUPS = Object.keys(LIFE_GROUPS).reduce(function (acc, k) { return acc.concat(LIFE_GROUPS[k]); }, []);
+  // ── Lift Group: free text + “No Life Group” checkbox ──
   var lgInput = document.getElementById('lift-group-input');
-  var lgList  = document.getElementById('lift-group-list');
-  var lgHint  = document.getElementById('lift-group-hint');
   var lgError = document.getElementById('lift-group-error');
-  var lgIdx   = -1;
   var NO_LIFE_GROUP = 'No Life Group';
   var noLgOpt = document.getElementById('no-life-group-option');
 
-  function syncNoLifeGroupOption() {
-    if (!noLgOpt) return;
-    var on = lgInput.value.trim() === NO_LIFE_GROUP;
-    SEL.forEach(function (c) { noLgOpt.classList.toggle(c, on); });
-    UNSEL.forEach(function (c) { noLgOpt.classList.toggle(c, !on); });
-  }
-  function lgGroups() {
-    var chosen = form.querySelector('.campus-radio:checked');
-    return (chosen && LIFE_GROUPS[chosen.value]) ? LIFE_GROUPS[chosen.value] : [];
-  }
-  function lgCloseList() {
-    lgList.classList.add('hidden');
-    lgList.innerHTML = '';
-    lgInput.setAttribute('aria-expanded', 'false');
-    lgIdx = -1;
-  }
-  function lgOpenList() {
-    var groups = lgGroups();
-    if (!groups.length) { lgCloseList(); return; }
-    var q = lgInput.value.trim().toLowerCase();
-    var matches = groups.filter(function (g) { return g.toLowerCase().indexOf(q) !== -1; });
-    if (!matches.length) { lgCloseList(); return; }
-    lgList.innerHTML = '';
-    matches.forEach(function (g) {
-      var li = document.createElement('li');
-      li.textContent = g;
-      li.setAttribute('role', 'option');
-      li.className = 'px-3 py-2 cursor-pointer hover:bg-indigo-50';
-      li._val = g;
-      lgList.appendChild(li);
-    });
-    lgList.classList.remove('hidden');
-    lgInput.setAttribute('aria-expanded', 'true');
-    lgIdx = -1;
-  }
-  function lgPick(val) {
-    lgInput.value = val;
-    lgCloseList();
-    syncNoLifeGroupOption();
-    if (lgError) lgError.classList.add('hidden');
+  function applyNoLifeGroup(on) {
+    if (!lgInput) return;
+    if (on) {
+      lgInput.value = NO_LIFE_GROUP;
+      lgInput.readOnly = true;
+      lgInput.classList.add('lg-field-locked');
+    } else {
+      if (lgInput.value.trim() === NO_LIFE_GROUP) lgInput.value = '';
+      lgInput.readOnly = false;
+      lgInput.classList.remove('lg-field-locked');
+    }
+    if (lgInput.value.trim() && lgError) lgError.classList.add('hidden');
     if (typeof recalc === 'function') recalc();
   }
-  function lgHighlight(items) {
-    items.forEach(function (it, i) { it.classList.toggle('bg-indigo-50', i === lgIdx); });
-    if (lgIdx >= 0) { items[lgIdx].scrollIntoView({ block: 'nearest' }); }
-  }
 
-  lgInput.addEventListener('input', function () {
-    syncNoLifeGroupOption();
-    if (lgInput.value.trim() && lgError) lgError.classList.add('hidden');
-    lgOpenList();
-  });
-  lgInput.addEventListener('focus', lgOpenList);
-  lgInput.addEventListener('blur', function () { setTimeout(lgCloseList, 150); });
-  lgInput.addEventListener('keydown', function (e) {
-    var items = Array.prototype.slice.call(lgList.querySelectorAll('li'));
-    if (e.key === 'Escape') { lgCloseList(); return; }
-    if (!items.length) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); lgIdx = Math.min(lgIdx + 1, items.length - 1); lgHighlight(items); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); lgIdx = Math.max(lgIdx - 1, 0); lgHighlight(items); }
-    else if (e.key === 'Enter' && lgIdx >= 0) { e.preventDefault(); lgPick(items[lgIdx]._val); }
-  });
-  // pointerdown fires before the input's blur, on both touch and mouse.
-  lgList.addEventListener('pointerdown', function (e) {
-    var li = e.target.closest('li');
-    if (!li) return;
-    e.preventDefault();
-    lgPick(li._val);
-  });
-  if (noLgOpt) {
-    noLgOpt.addEventListener('click', function (e) {
-      e.preventDefault();
-      lgPick(NO_LIFE_GROUP);
+  if (lgInput) {
+    lgInput.addEventListener('input', function () {
+      // If the user somehow edits away from the locked value, uncheck the box.
+      if (noLgOpt && noLgOpt.checked && lgInput.value.trim() !== NO_LIFE_GROUP) {
+        noLgOpt.checked = false;
+        lgInput.readOnly = false;
+        lgInput.classList.remove('lg-field-locked');
+      }
+      if (lgInput.value.trim() && lgError) lgError.classList.add('hidden');
+      if (typeof recalc === 'function') recalc();
     });
   }
-  syncNoLifeGroupOption();
-
-  function lgUpdateForCampus(userChanged) {
-    var chosen = form.querySelector('.campus-radio:checked');
-    var groups = lgGroups();
-    if (!chosen) {
-      lgHint.textContent = 'Choose your campus above to see its life groups, or type your own (max 20 characters). Required.';
-    } else if (groups.length) {
-      lgHint.textContent = 'Start typing to pick a ' + chosen.value + ' life group, enter your own, or choose “I don\'t join a Life Group” below.';
-    } else {
-      lgHint.textContent = 'Enter your life group name, or choose “I don\'t join a Life Group” below.';
-    }
-    // On an actual campus switch, drop a value that was a suggestion from the
-    // previous campus (keep anything the orderer typed themselves, including No Life Group).
-    if (userChanged && lgInput.value && lgInput.value !== NO_LIFE_GROUP
-        && ALL_GROUPS.indexOf(lgInput.value) !== -1 && groups.indexOf(lgInput.value) === -1) {
-      lgInput.value = '';
-      syncNoLifeGroupOption();
-    }
-    lgCloseList();
+  if (noLgOpt) {
+    noLgOpt.addEventListener('change', function () {
+      applyNoLifeGroup(!!noLgOpt.checked);
+    });
+    // Sync initial state (e.g. after validation re-render).
+    if (noLgOpt.checked) applyNoLifeGroup(true);
   }
 
   form.querySelectorAll('.campus-radio').forEach(function (r) {
-    r.addEventListener('change', function () { syncCampus(); lgUpdateForCampus(true); });
+    r.addEventListener('change', syncCampus);
   });
   syncCampus();
-  lgUpdateForCampus(false);
 
   // Submit flow: campus guard, then an order-review step before Stripe.
   var confirmed = false;
@@ -494,6 +604,12 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   function closeModal() { modal.classList.add('hidden'); document.body.style.overflow = ''; }
 
   form.addEventListener('submit', function (e) {
+    if (!checkoutOk) {
+      e.preventDefault();
+      var banner = document.getElementById('ordering-window-banner');
+      if (banner) banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     if (!CAMPUSES_OK || !campusChosen()) {
       e.preventDefault();
       if (campusError) {
@@ -524,24 +640,6 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     closeModal();
     if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
   });
-
-  // Live US phone formatting: (123) 456-7890
-  var phoneEl = form.querySelector('input[name="phone"]');
-  function formatPhone(v) {
-    var d = (v || '').replace(/\D/g, '');
-    if (d.length === 11 && d[0] === '1') { d = d.slice(1); }
-    d = d.slice(0, 10);
-    if (d.length === 0) return '';
-    if (d.length < 4) return '(' + d;
-    if (d.length < 7) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
-    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
-  }
-  if (phoneEl) {
-    var reformat = function () { phoneEl.value = formatPhone(phoneEl.value); };
-    phoneEl.addEventListener('input', reformat);
-    phoneEl.addEventListener('blur', reformat);
-    reformat();
-  }
 
   var BOX_ON = 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-300'.split(' ');
   function syncBoxHighlight() {
@@ -841,14 +939,24 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     });
     totalEl.textContent = '$' + (cents / 100).toFixed(2);
     syncFormSteps();
-    payBtn.disabled = !formIsComplete(any);
+    payBtn.disabled = !checkoutOk || !formIsComplete(any);
+    if (!checkoutOk) {
+      payBtn.title = 'Checkout is only available during the ordering window';
+    } else if (!CAMPUSES_OK) {
+      payBtn.title = 'Campus options are not configured';
+    } else {
+      payBtn.title = '';
+    }
     syncBoxHighlight();
   }
 
   function applyRemaining(data) {
     if (!data || !data.ok) return;
-    if (data.open === false) { location.reload(); return; }
-    Object.keys(data.boxes).forEach(function (code) {
+    if (typeof data.checkout_open === 'boolean') {
+      checkoutOk = data.checkout_open;
+      if (payBtn) payBtn.setAttribute('data-checkout-ok', checkoutOk ? '1' : '0');
+    }
+    Object.keys(data.boxes || {}).forEach(function (code) {
       var info = data.boxes[code];
       var label = form.querySelector('[data-remaining="' + code + '"]');
       var cb = form.querySelector('.box-check[value="' + code + '"]');
@@ -942,5 +1050,4 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
 })();
 </script>
 
-<?php endif; ?>
 <?php layout_footer(); ?>

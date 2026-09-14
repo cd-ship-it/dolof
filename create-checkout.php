@@ -60,8 +60,20 @@ $old = [
     'qty'                 => array_map('intval', $qtyInput),
 ];
 
-if (!ordering_is_open($pdo)) {
-    reject_with(['Online ordering is currently closed.'], $old);
+if (!ordering_accepts_checkout($pdo)) {
+    if (!ordering_is_open($pdo)) {
+        reject_with(['Online ordering is currently closed.'], $old);
+    }
+    $start = ordering_window_start();
+    $end   = ordering_window_end();
+    $now   = new DateTimeImmutable('now');
+    if ($start && $now < $start) {
+        reject_with(['Ordering has not opened yet. It starts ' . ordering_format_pt($start) . '.'], $old);
+    }
+    if ($end && $now > $end) {
+        reject_with(['Ordering has closed. The window ended ' . ordering_format_pt($end) . '.'], $old);
+    }
+    reject_with(['Online ordering is not available right now.'], $old);
 }
 
 if ($campuses === []) {

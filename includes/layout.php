@@ -73,6 +73,7 @@ function layout_footer(): void
 <footer class="max-w-3xl mx-auto px-4 py-8 text-center text-sm text-gray-500">
   <p class="flex items-center justify-center gap-1.5 text-gray-400">
     <span>Payments powered &amp; secured by</span>
+    <img src="<?= e($base) ?>/img/stripe.svg" alt="Stripe" class="h-4 w-auto inline-block align-middle">
   </p>
   <p class="mt-3">
     <div class="flex items-center justify-center gap-1.5">
