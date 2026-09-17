@@ -151,7 +151,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   </div>
 
   <div class="card space-y-4 transition-opacity duration-200<?= $formBrowseOk ? '' : ' form-step-locked' ?>" data-form-step="details"<?= $formBrowseOk ? '' : ' aria-disabled="true"' ?>>
-    <h2 class="text-2xl font-semibold text-gray-900">登者/小組組長/家長</h2>
+    <h2 class="text-2xl font-semibold text-gray-900">登記人/小組組長/家長</h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <label class="block">
         <span class="text-xl font-medium text-gray-700">名 First name <span class="text-red-600">*</span></span>
