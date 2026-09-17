@@ -11,7 +11,7 @@ require_once __DIR__ . '/logger.php';
 require_once __DIR__ . '/boxes.php';
 
 /**
- * @param array $customer  ['first_name','last_name','email','phone','campus','lift_group','attending_adults','attending_children','adult_names','child_names']
+ * @param array $customer  ['first_name','last_name','email','phone','campus','lift_group','attending_adults','attending_children','adult_attendees','child_attendees']
  * @param array $lines      each: ['box_id','code','name','unit_price_cents','quantity']
  * @return int  new order id
  * @throws BoxCapacityException when a box would exceed its cap
@@ -75,8 +75,8 @@ function create_pending_order(PDO $pdo, array $customer, array $lines, int $hold
             $total += (int) $line['unit_price_cents'] * (int) $line['quantity'];
         }
 
-        $adultNames = array_values((array) ($customer['adult_names'] ?? []));
-        $childNames = array_values((array) ($customer['child_names'] ?? []));
+        $adultAttendees = array_values((array) ($customer['adult_attendees'] ?? []));
+        $childAttendees = array_values((array) ($customer['child_attendees'] ?? []));
 
         $pdo->prepare(
             'INSERT INTO ' . DOLOS_TBL_ORDERS . '
@@ -94,8 +94,8 @@ function create_pending_order(PDO $pdo, array $customer, array $lines, int $hold
             $customer['lift_group'] ?? '',
             (int) ($customer['attending_adults'] ?? 0),
             (int) ($customer['attending_children'] ?? 0),
-            encode_attendee_names($adultNames),
-            encode_attendee_names($childNames),
+            encode_attendees($adultAttendees),
+            encode_attendees($childAttendees),
             $total,
             $holdMinutes,
         ]);
@@ -137,6 +137,47 @@ function create_pending_order(PDO $pdo, array $customer, array $lines, int $hold
             $pdo->query('SELECT RELEASE_LOCK(' . $pdo->quote($name) . ')');
         }
     }
+}
+
+/**
+ * Create a confirmed $0 RSVP (attendance only, no lunch boxes).
+ *
+ * @param array $customer same shape as create_pending_order
+ * @return int new order id
+ */
+function create_rsvp_order(PDO $pdo, array $customer): int
+{
+    require_once __DIR__ . '/helpers.php';
+
+    $adultAttendees = array_values((array) ($customer['adult_attendees'] ?? []));
+    $childAttendees = array_values((array) ($customer['child_attendees'] ?? []));
+
+    $pdo->prepare(
+        'INSERT INTO ' . DOLOS_TBL_ORDERS . '
+            (first_name, last_name, email, phone, campus, lift_group,
+             attending_adults, attending_children, adult_names, child_names, status,
+             total_amount_cents, payment_method, hold_expires_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'paid\', 0, \'rsvp\', NULL, NOW(), NOW())'
+    )->execute([
+        $customer['first_name'],
+        $customer['last_name'],
+        $customer['email'],
+        $customer['phone'],
+        $customer['campus'] ?? '',
+        $customer['lift_group'] ?? '',
+        (int) ($customer['attending_adults'] ?? 0),
+        (int) ($customer['attending_children'] ?? 0),
+        encode_attendees($adultAttendees),
+        encode_attendees($childAttendees),
+    ]);
+    $orderId = (int) $pdo->lastInsertId();
+
+    app_log('high', 'Order', 'rsvp order created', [
+        'order_id' => $orderId,
+        'email'    => $customer['email'],
+    ]);
+
+    return $orderId;
 }
 
 function order_get(PDO $pdo, int $id): ?array

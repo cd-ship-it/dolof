@@ -53,9 +53,9 @@ foreach ($orders as $o) {
         $o['campus'],
         $o['lift_group'],
         (int) ($o['attending_adults'] ?? 0),
-        implode('; ', decode_attendee_names($o['adult_names'] ?? null)),
+        implode('; ', array_map('format_attendee_line', decode_attendees($o['adult_names'] ?? null))),
         (int) ($o['attending_children'] ?? 0),
-        implode('; ', decode_attendee_names($o['child_names'] ?? null)),
+        implode('; ', array_map('format_attendee_line', decode_attendees($o['child_names'] ?? null))),
     ];
     foreach ($codes as $c) {
         $row[] = $qtyByOrder[(int) $o['id']][$c] ?? 0;

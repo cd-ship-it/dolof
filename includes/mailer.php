@@ -155,6 +155,9 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
             e(money((int) $it['unit_price_cents'] * (int) $it['quantity']))
         );
     }
+    if ($rowsHtml === '') {
+        $rowsHtml = '<tr><td colspan="3" style="padding:6px 12px;color:#6b7280;">No lunch boxes — attendance only</td></tr>';
+    }
 
     $phone = trim((string) ($order['phone'] ?? ''));
     $fallbackNote = $usedFallback

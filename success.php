@@ -1,10 +1,12 @@
 <?php
 /**
  * Stripe redirect target. Confirms the payment (idempotent with the webhook)
- * and shows the order summary.
+ * and shows the order summary. Also handles free RSVP confirmations.
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/logger.php';
 require_once __DIR__ . '/includes/boxes.php';
 require_once __DIR__ . '/includes/orders.php';
@@ -12,47 +14,68 @@ require_once __DIR__ . '/includes/mailer.php';
 require_once __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
-$sessionId = $_GET['session_id'] ?? '';
-if ($sessionId === '') {
-    header('Location: ' . APP_URL . '/order', true, 302);
-    exit;
-}
+auth_start_session();
 
-$order = null;
+$order  = null;
+$isRsvp = isset($_GET['rsvp']) && $_GET['rsvp'] === '1';
 
-try {
-    \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
-    $session = \Stripe\Checkout\Session::retrieve($sessionId);
-
-    if ($session
-        && $session->payment_status === 'paid'
-        && ($session->metadata->source ?? '') === 'dolos'
-        && !empty($session->metadata->order_id)
-    ) {
-        $orderId = (int) $session->metadata->order_id;
-        $amount  = isset($session->amount_total) ? (int) $session->amount_total : null;
-        payment_finalize_and_notify($pdo, $orderId, $sessionId, $amount);
-        $order = order_get_with_items($pdo, $orderId);
-    } else {
-        app_log('high', 'Payment', 'success page: not paid / bad metadata', [
-            'stripe_session_id' => $sessionId,
-            'payment_status'    => $session->payment_status ?? null,
-        ]);
+if ($isRsvp) {
+    $orderId = (int) ($_SESSION['rsvp_order_id'] ?? 0);
+    unset($_SESSION['rsvp_order_id']);
+    if ($orderId > 0) {
+        $candidate = order_get_with_items($pdo, $orderId);
+        if ($candidate && ($candidate['payment_method'] ?? '') === 'rsvp' && $candidate['status'] === 'paid') {
+            $order = $candidate;
+        }
     }
-} catch (Throwable $e) {
-    app_log('high', 'Payment', 'success page error', ['error' => $e->getMessage()]);
+    if ($order === null) {
+        header('Location: ' . APP_URL . '/order', true, 302);
+        exit;
+    }
+} else {
+    $sessionId = $_GET['session_id'] ?? '';
+    if ($sessionId === '') {
+        header('Location: ' . APP_URL . '/order', true, 302);
+        exit;
+    }
+
+    try {
+        \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
+        $session = \Stripe\Checkout\Session::retrieve($sessionId);
+
+        if ($session
+            && $session->payment_status === 'paid'
+            && ($session->metadata->source ?? '') === 'dolos'
+            && !empty($session->metadata->order_id)
+        ) {
+            $orderId = (int) $session->metadata->order_id;
+            $amount  = isset($session->amount_total) ? (int) $session->amount_total : null;
+            payment_finalize_and_notify($pdo, $orderId, $sessionId, $amount);
+            $order = order_get_with_items($pdo, $orderId);
+        } else {
+            app_log('high', 'Payment', 'success page: not paid / bad metadata', [
+                'stripe_session_id' => $sessionId,
+                'payment_status'    => $session->payment_status ?? null,
+            ]);
+        }
+    } catch (Throwable $e) {
+        app_log('high', 'Payment', 'success page error', ['error' => $e->getMessage()]);
+    }
 }
 
 layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
 ?>
 <?php if ($order && $order['status'] === 'paid'): ?>
+  <?php
+    $confirmEmail = trim((string) ($order['email'] ?? ''));
+    $confirmEmailOk = $confirmEmail !== '' && filter_var($confirmEmail, FILTER_VALIDATE_EMAIL);
+    $adultLines = array_map('format_attendee_line', decode_attendees($order['adult_names'] ?? null));
+    $childLines = array_map('format_attendee_line', decode_attendees($order['child_names'] ?? null));
+    $isRsvpOrder = ($order['payment_method'] ?? '') === 'rsvp';
+  ?>
   <div class="card text-center mb-6">
     <div class="text-4xl mb-2">🎉</div>
-    <h1 class="text-2xl font-bold text-indigo-900">Order confirmed!</h1>
-    <?php
-      $confirmEmail = trim((string) ($order['email'] ?? ''));
-      $confirmEmailOk = $confirmEmail !== '' && filter_var($confirmEmail, FILTER_VALIDATE_EMAIL);
-    ?>
+    <h1 class="text-2xl font-bold text-indigo-900"><?= $isRsvpOrder ? 'RSVP confirmed!' : 'Order confirmed!' ?></h1>
     <?php if ($confirmEmailOk): ?>
       <p class="text-gray-600 mt-2">A confirmation email is on its way to <strong><?= e($confirmEmail) ?></strong>.</p>
     <?php else: ?>
@@ -60,12 +83,23 @@ layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
     <?php endif; ?>
   </div>
   <div class="card">
-    <h2 class="font-semibold text-gray-900 mb-3">Order #<?= (int) $order['id'] ?></h2>
+    <h2 class="font-semibold text-gray-900 mb-3"><?= $isRsvpOrder ? 'RSVP' : 'Order' ?> #<?= (int) $order['id'] ?></h2>
     <p class="text-sm text-gray-600 mb-4">
       <?= e(trim($order['first_name'] . ' ' . $order['last_name'])) ?> &middot; <?= e($order['phone']) ?><br>
       <span class="text-gray-500">Campus:</span> <?= e($order['campus']) ?>
       &middot; <span class="text-gray-500">Lift Group:</span> <?= e($order['lift_group']) ?>
     </p>
+    <?php if ($adultLines || $childLines): ?>
+    <div class="text-sm text-gray-700 mb-4 space-y-1">
+      <?php if ($adultLines): ?>
+        <div><span class="text-gray-500">Adults:</span> <?= e(implode('; ', $adultLines)) ?></div>
+      <?php endif; ?>
+      <?php if ($childLines): ?>
+        <div><span class="text-gray-500">Children:</span> <?= e(implode('; ', $childLines)) ?></div>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+    <?php if ($order['items']): ?>
     <table class="w-full text-sm">
       <thead><tr class="text-left text-gray-500 border-b">
         <th class="py-1">Box</th><th class="py-1 text-center">Qty</th><th class="py-1 text-right">Subtotal</th>
@@ -84,10 +118,12 @@ layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
         <td class="pt-3 font-semibold text-right"><?= e(money((int) $order['total_amount_cents'])) ?></td>
       </tr></tfoot>
     </table>
+    <?php else: ?>
+    <p class="text-sm text-gray-600">No lunch boxes ordered — attendance only.</p>
+    <?php endif; ?>
   </div>
   <div class="text-center mt-6">
-    <a href="<?= e(APP_URL) ?>/order" target="_blank" rel="noopener" class="btn-primary inline-block">Order more</a>
-    <!-- <p class="text-xs text-gray-400 mt-2">Opens a fresh order form in a new tab.</p> -->
+    <a href="<?= e(APP_URL) ?>/order" target="_blank" rel="noopener" class="btn-primary inline-block">Submit another</a>
   </div>
 <?php else: ?>
   <div class="card text-center">

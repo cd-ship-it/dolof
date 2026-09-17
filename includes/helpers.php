@@ -141,11 +141,92 @@ function encode_attendee_names(array $names): string
 }
 
 /**
- * Decode attendee names from DB (JSON array or empty).
+ * Normalize posted per-person attendee rows to exactly $requireCount entries.
+ *
+ * @param mixed $firstRaw
+ * @param mixed $lastRaw
+ * @param mixed $boxRaw
+ * @return list<array{first:string,last:string,box:string}>
+ */
+function normalize_attendees($firstRaw, $lastRaw, $boxRaw, int $requireCount): array
+{
+    $firsts = is_array($firstRaw) ? array_map(fn($v) => trim((string) $v), $firstRaw) : [];
+    $lasts  = is_array($lastRaw) ? array_map(fn($v) => trim((string) $v), $lastRaw) : [];
+    $boxes  = is_array($boxRaw) ? array_map(fn($v) => trim((string) $v), $boxRaw) : [];
+    if ($requireCount < 1) {
+        return [];
+    }
+    $out = [];
+    for ($i = 0; $i < $requireCount; $i++) {
+        $out[] = [
+            'first' => $firsts[$i] ?? '',
+            'last'  => $lasts[$i] ?? '',
+            'box'   => $boxes[$i] ?? '',
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Read lunch choices posted as adult_box_0 / child_box_1 (radio-safe names).
  *
  * @return list<string>
  */
-function decode_attendee_names(?string $raw): array
+function posted_attendee_boxes(string $kind, int $count): array
+{
+    $out = [];
+    for ($i = 0; $i < $count; $i++) {
+        $out[] = trim((string) ($_POST[$kind . '_box_' . $i] ?? ''));
+    }
+    // Fallback: legacy adult_box[] / adult_box[0] shapes.
+    if ($out === [] || ($count > 0 && $out[0] === '')) {
+        $legacy = $_POST[$kind . '_box'] ?? null;
+        if (is_array($legacy)) {
+            for ($i = 0; $i < $count; $i++) {
+                if (($out[$i] ?? '') === '') {
+                    $out[$i] = trim((string) ($legacy[$i] ?? ''));
+                }
+            }
+        }
+    }
+    return $out;
+}
+
+/**
+ * Read unified attendance rows posted by the order form.
+ * Checkbox attendee_child_N is present only when that person is 12 or under.
+ *
+ * @return list<array{first:string,last:string,box:string,child:bool}>
+ */
+function posted_form_attendees(int $max = 50): array
+{
+    $firsts = is_array($_POST['attendee_first'] ?? null) ? array_values($_POST['attendee_first']) : [];
+    $lasts  = is_array($_POST['attendee_last'] ?? null) ? array_values($_POST['attendee_last']) : [];
+    $count  = min($max, max(count($firsts), count($lasts)));
+    $out = [];
+    for ($i = 0; $i < $count; $i++) {
+        $out[] = [
+            'first' => trim((string) ($firsts[$i] ?? '')),
+            'last'  => trim((string) ($lasts[$i] ?? '')),
+            'box'   => trim((string) ($_POST['attendee_box_' . $i] ?? '')),
+            'child' => isset($_POST['attendee_child_' . $i]),
+        ];
+    }
+    return $out;
+}
+
+/** Encode structured attendees for DB storage (JSON array). */
+function encode_attendees(array $attendees): string
+{
+    return json_encode(array_values($attendees), JSON_UNESCAPED_UNICODE) ?: '[]';
+}
+
+/**
+ * Decode attendees from DB. Supports structured objects and legacy plain strings.
+ *
+ * @return list<array{first:string,last:string,box:string}>
+ */
+function decode_attendees(?string $raw): array
 {
     if ($raw === null || trim($raw) === '') {
         return [];
@@ -155,10 +236,60 @@ function decode_attendee_names(?string $raw): array
         return [];
     }
     $out = [];
-    foreach ($data as $name) {
-        $name = trim((string) $name);
+    foreach ($data as $row) {
+        if (is_array($row)) {
+            $first = trim((string) ($row['first'] ?? ''));
+            $last  = trim((string) ($row['last'] ?? ''));
+            $box   = trim((string) ($row['box'] ?? ''));
+            if ($first !== '' || $last !== '' || $box !== '') {
+                $out[] = ['first' => $first, 'last' => $last, 'box' => $box];
+            }
+            continue;
+        }
+        $name = trim((string) $row);
         if ($name !== '') {
-            $out[] = $name;
+            $out[] = ['first' => $name, 'last' => '', 'box' => ''];
+        }
+    }
+    return $out;
+}
+
+/** Full display name from an attendee record. */
+function attendee_full_name(array $attendee): string
+{
+    return trim(($attendee['first'] ?? '') . ' ' . ($attendee['last'] ?? ''));
+}
+
+/**
+ * Format one attendee for display/export.
+ * e.g. "John Smith (A)" or "Jane Doe (none)" or legacy "John Smith"
+ */
+function format_attendee_line(array $attendee): string
+{
+    $name = attendee_full_name($attendee);
+    if ($name === '') {
+        return '';
+    }
+    $box = trim((string) ($attendee['box'] ?? ''));
+    if ($box === '') {
+        return $name;
+    }
+    return $name . ' (' . $box . ')';
+}
+
+/**
+ * Decode attendee names from DB (JSON array or empty).
+ * Returns human-readable lines (includes lunch choice when stored).
+ *
+ * @return list<string>
+ */
+function decode_attendee_names(?string $raw): array
+{
+    $out = [];
+    foreach (decode_attendees($raw) as $attendee) {
+        $line = format_attendee_line($attendee);
+        if ($line !== '') {
+            $out[] = $line;
         }
     }
     return $out;

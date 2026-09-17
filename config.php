@@ -68,6 +68,10 @@ define('DOLOS_LOW_STOCK_THRESHOLD',     max(0, (int) env('DOLOS_LOW_STOCK_THRESH
 define('ORDERING_START', (string) env('ORDERING_START', ''));
 define('ORDERING_END',   (string) env('ORDERING_END', ''));
 
+// Order form: grey out later cards until earlier sections are complete.
+// Set ORDER_FORM_PROGRESSIVE_STEPS=1 in .env to re-enable.
+define('ORDER_FORM_PROGRESSIVE_STEPS', filter_var(env('ORDER_FORM_PROGRESSIVE_STEPS', '0'), FILTER_VALIDATE_BOOLEAN));
+
 // Pending-order hold. Kept a few minutes longer than the Stripe Checkout
 // session so our seat reservation always outlives Stripe's payment window.
 define('HOLD_MINUTES', max(32, (int) env('HOLD_MINUTES', 35)));

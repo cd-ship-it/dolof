@@ -35,14 +35,21 @@ if (!$order) {
     <div><span class="text-gray-500">Campus:</span> <?= e($order['campus']) ?></div>
     <div><span class="text-gray-500">Lift Group:</span> <?= e($order['lift_group']) ?></div>
     <div><span class="text-gray-500">Adult:</span> <?= (int) ($order['attending_adults'] ?? 0) ?></div>
-    <?php $adultNames = decode_attendee_names($order['adult_names'] ?? null); if ($adultNames): ?>
-    <div class="pl-3 text-gray-600"><?= e(implode(', ', $adultNames)) ?></div>
+    <?php
+      $adultLines = array_map('format_attendee_line', decode_attendees($order['adult_names'] ?? null));
+      if ($adultLines):
+    ?>
+    <div class="pl-3 text-gray-600"><?= e(implode('; ', $adultLines)) ?></div>
     <?php endif; ?>
     <div><span class="text-gray-500">Children (12 &amp; under):</span> <?= (int) ($order['attending_children'] ?? 0) ?></div>
-    <?php $childNames = decode_attendee_names($order['child_names'] ?? null); if ($childNames): ?>
-    <div class="pl-3 text-gray-600"><?= e(implode(', ', $childNames)) ?></div>
+    <?php
+      $childLines = array_map('format_attendee_line', decode_attendees($order['child_names'] ?? null));
+      if ($childLines):
+    ?>
+    <div class="pl-3 text-gray-600"><?= e(implode('; ', $childLines)) ?></div>
     <?php endif; ?>
     <div><span class="text-gray-500">Status:</span> <?= e($order['status']) ?></div>
+    <div><span class="text-gray-500">Payment:</span> <?= e($order['payment_method'] ?? 'stripe') ?></div>
     <div><span class="text-gray-500">Placed:</span> <?= e($order['created_at']) ?></div>
     <div><span class="text-gray-500">Stripe session:</span> <span class="font-mono text-xs"><?= e($order['stripe_session_id']) ?></span></div>
     <div><span class="text-gray-500">Confirmation email:</span> <?= ((int) $order['confirmation_email_sent'] === 1) ? 'sent' : 'not sent' ?></div>
@@ -52,13 +59,15 @@ if (!$order) {
     <table class="w-full text-sm">
       <thead><tr class="text-left text-gray-500 border-b"><th class="py-1">Box</th><th class="py-1 text-center">Qty</th><th class="py-1 text-right">Subtotal</th></tr></thead>
       <tbody>
-      <?php foreach ($order['items'] as $it): ?>
+      <?php if ($order['items']): foreach ($order['items'] as $it): ?>
         <tr class="border-b border-gray-100">
           <td class="py-2"><?= e($it['box_code'] . ' — ' . $it['box_name']) ?></td>
           <td class="py-2 text-center"><?= (int) $it['quantity'] ?></td>
           <td class="py-2 text-right"><?= e(money((int) $it['unit_price_cents'] * (int) $it['quantity'])) ?></td>
         </tr>
-      <?php endforeach; ?>
+      <?php endforeach; else: ?>
+        <tr><td class="py-2 text-gray-500" colspan="3">No lunch boxes — attendance only</td></tr>
+      <?php endif; ?>
       </tbody>
       <tfoot><tr><td class="pt-3 font-semibold" colspan="2">Total</td><td class="pt-3 font-semibold text-right"><?= e(money((int) $order['total_amount_cents'])) ?></td></tr></tfoot>
     </table>
