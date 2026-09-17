@@ -1,8 +1,8 @@
 <?php
 /**
  * Stripe webhook endpoint.
- *   checkout.session.completed -> finalize order + send confirmation email
- *   checkout.session.expired   -> release the hold (mark order expired)
+ *   checkout.session.completed / async_payment_succeeded -> finalize order + email
+ *   checkout.session.expired / async_payment_failed     -> release hold / log failure
  *
  * Register at: <APP_URL>/stripe-webhook
  */
@@ -42,15 +42,31 @@ app_log('high', 'Payment', 'webhook received', [
     'stripe_session_id' => $object->id ?? null,
 ]);
 
-if ($type === 'checkout.session.completed' && $orderId > 0) {
-    $amount = isset($object->amount_total) ? (int) $object->amount_total : null;
-    if (!payment_finalize_and_notify($pdo, $orderId, $object->id, $amount)) {
-        http_response_code(500);
-        exit('Finalize failed');
+$finalizeTypes = [
+    'checkout.session.completed',
+    'checkout.session.async_payment_succeeded',
+];
+
+if (in_array($type, $finalizeTypes, true) && $orderId > 0) {
+    $paymentStatus = (string) ($object->payment_status ?? '');
+    // Delayed methods can fire completed while still unpaid — only fulfill when paid.
+    if ($paymentStatus === 'unpaid') {
+        app_log('high', 'Payment', 'webhook skip unpaid session', [
+            'type' => $type, 'order_id' => $orderId, 'payment_status' => $paymentStatus,
+        ]);
+    } else {
+        $amount = isset($object->amount_total) ? (int) $object->amount_total : null;
+        if (!payment_finalize_and_notify($pdo, $orderId, $object->id, $amount)) {
+            http_response_code(500);
+            exit('Finalize failed');
+        }
     }
 } elseif ($type === 'checkout.session.expired' && $orderId > 0) {
     mark_order_expired($pdo, $orderId);
     app_log('high', 'Payment', 'hold released (checkout expired)', ['order_id' => $orderId]);
+} elseif ($type === 'checkout.session.async_payment_failed' && $orderId > 0) {
+    mark_order_expired($pdo, $orderId);
+    app_log('high', 'Payment', 'async payment failed; hold released', ['order_id' => $orderId]);
 }
 
 http_response_code(200);

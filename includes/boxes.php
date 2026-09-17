@@ -104,6 +104,21 @@ function ordering_accepts_checkout(PDO $pdo): bool
     return ordering_is_open($pdo) && ordering_within_window();
 }
 
+/**
+ * Payment UI mode: "elements" (on-site Payment Element) or "hosted" (Stripe Checkout page).
+ * Admin kill switch; default elements while trying the custom pay page.
+ */
+function checkout_mode(PDO $pdo): string
+{
+    $mode = strtolower(trim((string) dolos_setting($pdo, 'checkout_mode', 'elements')));
+    return $mode === 'hosted' ? 'hosted' : 'elements';
+}
+
+function checkout_mode_is_elements(PDO $pdo): bool
+{
+    return checkout_mode($pdo) === 'elements';
+}
+
 /** Human-readable Pacific time for banners (e.g. "Sep 20, 2026 at 2:00 PM PT"). */
 function ordering_format_pt(?DateTimeImmutable $dt): string
 {

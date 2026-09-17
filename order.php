@@ -23,6 +23,12 @@ $orderStart  = ordering_window_start();
 $orderEnd    = ordering_window_end();
 $maxQty      = DOLOS_MAX_QTY_PER_BOX;
 $cancelled   = isset($_GET['cancelled']);
+$checkoutModeElements = checkout_mode_is_elements($pdo);
+
+if (!empty($_SESSION['flash_error'])) {
+    $form_errors[] = (string) $_SESSION['flash_error'];
+    unset($_SESSION['flash_error']);
+}
 
 // Campuses: single source = data/life-groups.json keys
 $campuses           = campuses();
@@ -269,7 +275,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     </p>
     <div id="attendees" class="space-y-4"
          data-initial-attendees="<?= e(json_encode($attendeesOld, JSON_UNESCAPED_UNICODE)) ?>"></div>
-    <button type="button" id="add-attendee" class="btn-primary w-full sm:w-auto hidden">
+    <button type="button" id="add-attendee" class="btn-secondary w-full sm:w-auto hidden">
       再加一位成人或孩童
     </button>
     <p id="attendance-adult-error" class="hidden text-sm font-medium text-red-600">At least one person who is not 12 or under is required.</p>
@@ -325,7 +331,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
 
     <button type="button" id="confirm-go" class="btn-primary w-full text-center">Confirm &amp; Pay with card</button>
 
-    <p id="confirm-pay-note" class="text-xs text-gray-500">Next you'll be taken to Stripe to pay this amount by card. Your order is confirmed only after payment succeeds.</p>
+    <p id="confirm-pay-note" class="text-xs text-gray-500">Next you'll continue to our payment page to pay this amount by card. Your order is confirmed only after payment succeeds.</p>
 
     <button type="button" id="confirm-back"
             class="w-full rounded-md border-2 border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -347,6 +353,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   var remainingInfo = {};
   var CAMPUSES_OK = <?= $campusesConfigured ? 'true' : 'false' ?>;
   var checkoutOk = <?= $checkoutOk ? 'true' : 'false' ?>;
+  var checkoutModeElements = <?= $checkoutModeElements ? 'true' : 'false' ?>;
   var formBrowseOk = <?= $formBrowseOk ? 'true' : 'false' ?>;
   var progressiveSteps = <?= $progressiveSteps ? 'true' : 'false' ?>;
   var form = document.getElementById('order-form');
@@ -652,6 +659,9 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       syncCampus();
       lgUpdateForCampus(true);
       if (typeof recalc === 'function') recalc();
+      if (lgInput && !lgInput.disabled) {
+        lgInput.focus();
+      }
     });
   });
   syncCampus();
@@ -679,7 +689,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   }
 
   function lunchChoiceLabel(code) {
-    if (code === 'none') return 'Not Ordering';
+    if (code === 'none') return '留位但不點餐';
     return code + ' — ' + (BOX_NAMES[code] || code);
   }
 
@@ -734,7 +744,11 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       if (confirmNote) confirmNote.textContent = 'Your attendance will be recorded. No payment is required.';
     } else {
       confirmGo.textContent = 'Confirm & Pay with card';
-      if (confirmNote) confirmNote.textContent = 'Next you\'ll be taken to Stripe to pay this amount by card. Your order is confirmed only after payment succeeds.';
+      if (confirmNote) {
+        confirmNote.textContent = checkoutModeElements
+          ? 'Next you\'ll continue to our payment page to pay this amount by card. Your order is confirmed only after payment succeeds.'
+          : 'Next you\'ll be taken to Stripe to pay this amount by card. Your order is confirmed only after payment succeeds.';
+      }
     }
   }
 
@@ -765,6 +779,16 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       return;
     }
     if (!confirmed) {
+      // On-site /pay already shows the order summary — skip this review modal for paid
+      // Elements checkouts. Keep it for free RSVP and for hosted Stripe (kill switch).
+      var agg = aggregateBoxCounts();
+      var paidTotal = 0;
+      Object.keys(agg).forEach(function (code) {
+        paidTotal += (PRICES[code] || 0) * agg[code];
+      });
+      if (checkoutModeElements && paidTotal > 0) {
+        return;
+      }
       e.preventDefault();
       openModal();
     }
@@ -802,11 +826,15 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       var last = row.querySelector('input[data-attendee-last]');
       var child = row.querySelector('input[data-attendee-child]');
       var boxEl = row.querySelector('input[data-attendee-box]:checked');
+      var editor = row.querySelector('[data-attendee-editor]');
+      var complete = !!(first && first.value.trim() && last && last.value.trim() && boxEl && boxEl.value);
+      var oked = !!(editor && editor.classList.contains('hidden') && complete);
       out.push({
         first: first ? first.value.trim() : '',
         last: last ? last.value.trim() : '',
         box: boxEl ? boxEl.value : '',
-        child: !!(child && child.checked)
+        child: !!(child && child.checked),
+        oked: oked
       });
     });
     return out;
@@ -815,11 +843,14 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
     var rows = collectAttendees();
     if (rows.length < 1) return false;
     var adults = 0;
+    var okedCount = 0;
     for (var i = 0; i < rows.length; i++) {
-      if (!rows[i].first || !rows[i].last || !rows[i].box) return false;
+      // Every row must be OK'd (collapsed). Incomplete / in-edit rows block Continue.
+      if (!rows[i].oked) return false;
       if (!rows[i].child) adults++;
+      okedCount++;
     }
-    return adults >= 1;
+    return okedCount >= 1 && adults >= 1;
   }
   function aggregateBoxCounts() {
     var agg = {};
@@ -865,14 +896,14 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   }
   function notOrderingLabel(groupName, selectedBox) {
     var on = selectedBox === 'none';
-    return '<label class="lunch-option relative flex flex-col cursor-pointer items-center justify-center rounded-lg border-2 px-2 py-2 text-center text-xs font-medium transition '
+    return '<label class="lunch-option relative flex flex-col cursor-pointer items-center justify-center rounded-lg border-2 px-2 py-2 text-center text-md font-medium transition '
       + (on ? LUNCH_SEL.join(' ') : LUNCH_UNSEL.join(' ')) + '">'
       + '<input type="radio" name="' + groupName + '" value="none" class="sr-only" data-attendee-box data-box-code="none"'
       + (on ? ' checked' : '') + '>'
       + '<svg class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">'
       + '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>'
       + '</svg>'
-      + '<span class="leading-tight mt-0.5">不點餐</span>'
+      + '<span class="text-md leading-tight mt-0.5">留位但不點餐</span>'
       + '<span class="text-[10px] mt-0.5 min-h-[1em]"></span>'
       + '</label>';
   }
@@ -934,13 +965,18 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
   }
   function syncAttendeeOkBtn(row) {
     var ok = row && row.querySelector('[data-attendee-ok]');
-    if (ok) ok.disabled = !rowComplete(row);
+    if (!ok) return;
+    ok.disabled = !rowComplete(row);
+    var snap = row._editSnapshot;
+    var editingSaved = !!(snap && snap.first && snap.last && snap.box);
+    ok.textContent = editingSaved ? '更改' : '加入帳單';
   }
   function syncAddNextBtn() {
     if (!addAttendeeBtn || !attendeeList) return;
     var people = collectAttendees();
     var editing = !!attendeeList.querySelector('[data-attendee-editor]:not(.hidden)');
-    addAttendeeBtn.classList.toggle('hidden', editing || people.length < 1);
+    var hasOked = people.some(function (p) { return p.oked; });
+    addAttendeeBtn.classList.toggle('hidden', editing || !hasOked);
     addAttendeeBtn.disabled = people.length >= MAX_ATTENDEES;
   }
   function setRowMode(row, collapsed) {
@@ -1005,7 +1041,7 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
         + '</span></div>'
         + '<div data-attendee-editor class="space-y-2">'
         + '<div class="flex items-center justify-between gap-2">'
-        + '<p class="text-xl font-semibold text-gray-800"> 第' + (i + 1) + '位出席人 '+'</p>'
+        + '<p class="text-xl font-semibold text-gray-800"> 第' + (i + 1) + '位出席者 '+'</p>'
         + removeBtn
         + '</div>'
         + '<div class="grid sm:grid-cols-2 gap-3">'
@@ -1080,14 +1116,19 @@ layout_head('Order — Deacons Ordination Lunch Ordering Form');
       if (editBtn) {
         editBtn.addEventListener('click', function () {
           setRowMode(row, false);
+          recalc();
           var firstEl = row.querySelector('input[data-attendee-first]');
           if (firstEl) firstEl.focus();
         });
       }
-      if (rowComplete(row) && focusIndex !== i) {
+      // Preserve OK'd (collapsed) state across re-renders; never auto-OK without a click.
+      if (data.oked && rowComplete(row) && focusIndex !== i) {
         setRowMode(row, true);
       } else {
-        row._editSnapshot = attendeeRowData(row);
+        // Edit mode: previously OK'd → Save/Cancel restore; brand-new → OK label.
+        row._editSnapshot = (data.oked && rowComplete(row))
+          ? attendeeRowData(row)
+          : { first: '', last: '', box: '', child: false };
         syncAttendeeOkBtn(row);
       }
       if (i === 0) {

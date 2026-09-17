@@ -33,6 +33,19 @@
   .btn-primary:hover { background: #4338ca; }
   .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 
+  /* Secondary: Tailwind-style white / gray border button. */
+  .btn-secondary {
+    background: #fff;
+    color: #374151; /* gray-700 */
+    font-weight: 600;
+    padding: .75rem 1.5rem;
+    border-radius: .5rem;
+    font-size: 1.05rem;
+    border: 2px solid #d1d5db; /* gray-300 */
+  }
+  .btn-secondary:hover { background: #f9fafb; } /* gray-50 */
+  .btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
+
   /* Progressive form steps — locked cards read clearly as unavailable. */
   .form-step-locked {
     background: #f3f4f6 !important;

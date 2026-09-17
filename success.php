@@ -52,6 +52,9 @@ if ($isRsvp) {
             $amount  = isset($session->amount_total) ? (int) $session->amount_total : null;
             payment_finalize_and_notify($pdo, $orderId, $sessionId, $amount);
             $order = order_get_with_items($pdo, $orderId);
+            if (isset($_SESSION['stripe_pay'])) {
+                unset($_SESSION['stripe_pay']);
+            }
         } else {
             app_log('high', 'Payment', 'success page: not paid / bad metadata', [
                 'stripe_session_id' => $sessionId,
@@ -75,7 +78,7 @@ layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
   ?>
   <div class="card text-center mb-6">
     <div class="text-4xl mb-2">🎉</div>
-    <h1 class="text-2xl font-bold text-indigo-900"><?= $isRsvpOrder ? 'RSVP confirmed!' : 'Order confirmed!' ?></h1>
+    <h1 class="text-2xl font-bold text-indigo-900"><?= $isRsvpOrder ? 'RSVP confirmed!' : '午餐訂購完成!' ?></h1>
     <?php if ($confirmEmailOk): ?>
       <p class="text-gray-600 mt-2">A confirmation email is on its way to <strong><?= e($confirmEmail) ?></strong>.</p>
     <?php else: ?>
@@ -122,14 +125,49 @@ layout_head('Thank you — Deacons Ordination Lunch Ordering Form');
     <p class="text-sm text-gray-600">No lunch boxes ordered — attendance only.</p>
     <?php endif; ?>
   </div>
-  <div class="text-center mt-6">
-    <a href="<?= e(APP_URL) ?>/order" target="_blank" rel="noopener" class="btn-primary inline-block">Submit another</a>
+  <div class="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+    <button type="button" id="close-window" class="btn-primary w-full sm:w-auto">Close this window</button>
+    <a href="<?= e(APP_URL) ?>/order" class="btn-secondary inline-block text-center w-full sm:w-auto">Submit another order</a>
   </div>
+  <script>
+  (function () {
+    var btn = document.getElementById('close-window');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      window.close();
+      // Browsers block close() unless this tab was opened by script.
+      setTimeout(function () {
+        if (!window.closed) {
+          btn.textContent = 'You can close this tab now';
+          btn.disabled = true;
+        }
+      }, 150);
+    });
+  })();
+  </script>
 <?php else: ?>
   <div class="card text-center">
     <h1 class="text-xl font-bold text-gray-800">Payment received</h1>
     <p class="text-gray-600 mt-2">If you just paid, your order is being finalized. You'll get a confirmation email shortly — you may close this page.</p>
-    <p class="mt-4"><a href="<?= e(APP_URL) ?>/order" class="btn-primary inline-block">Back to ordering</a></p>
+    <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+      <button type="button" id="close-window-pending" class="btn-primary w-full sm:w-auto">Close this window</button>
+      <a href="<?= e(APP_URL) ?>/order" class="btn-secondary inline-block text-center w-full sm:w-auto">Submit another order</a>
+    </div>
   </div>
+  <script>
+  (function () {
+    var btn = document.getElementById('close-window-pending');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      window.close();
+      setTimeout(function () {
+        if (!window.closed) {
+          btn.textContent = 'You can close this tab now';
+          btn.disabled = true;
+        }
+      }, 150);
+    });
+  })();
+  </script>
 <?php endif; ?>
 <?php layout_footer(); ?>

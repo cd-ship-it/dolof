@@ -1,8 +1,9 @@
 <?php
 /**
  * Validate the order form, reserve a timed hold, create a Stripe Checkout
- * Session, and redirect the customer to Stripe. The order is confirmed only
- * when payment completes (stripe-webhook.php / success.php).
+ * Session, then either redirect to hosted Checkout or to /pay (Elements)
+ * depending on checkout_mode. The order is confirmed only when payment
+ * completes (stripe-webhook.php / success.php).
  *
  * Free RSVP ($0, all Not Ordering) skips Stripe and confirms immediately.
  */
@@ -222,6 +223,8 @@ try {
         ];
     }
 
+    $useElements = checkout_mode_is_elements($pdo);
+
     $sessionParams = [
         'mode'                 => 'payment',
         'line_items'           => $lineItems,
@@ -229,11 +232,19 @@ try {
         'metadata'             => ['order_id' => (string) $orderId, 'source' => 'dolos', 'campus' => $campus, 'lift_group' => $liftGroup],
         'payment_intent_data'  => ['metadata' => ['order_id' => (string) $orderId, 'source' => 'dolos']],
         'expires_at'           => time() + STRIPE_CHECKOUT_MINUTES * 60,
-        'success_url'          => APP_URL . '/success?session_id={CHECKOUT_SESSION_ID}',
-        'cancel_url'           => APP_URL . '/cancel?order=' . $orderId,
     ];
     if ($emailOk) {
         $sessionParams['customer_email'] = $email;
+    }
+
+    if ($useElements) {
+        // On-site Payment Element (Checkout Sessions ui_mode=custom).
+        $sessionParams['ui_mode'] = 'custom';
+        $sessionParams['return_url'] = APP_URL . '/success?session_id={CHECKOUT_SESSION_ID}';
+        $sessionParams['billing_address_collection'] = 'auto';
+    } else {
+        $sessionParams['success_url'] = APP_URL . '/success?session_id={CHECKOUT_SESSION_ID}';
+        $sessionParams['cancel_url']  = APP_URL . '/cancel?order=' . $orderId;
     }
 
     $session = \Stripe\Checkout\Session::create($sessionParams);
@@ -241,8 +252,24 @@ try {
     order_attach_stripe_session($pdo, $orderId, $session->id);
 
     app_log('high', 'Payment', 'checkout session created', [
-        'order_id' => $orderId, 'stripe_session_id' => $session->id,
+        'order_id' => $orderId,
+        'stripe_session_id' => $session->id,
+        'checkout_mode' => $useElements ? 'elements' : 'hosted',
     ]);
+
+    if ($useElements) {
+        $clientSecret = (string) ($session->client_secret ?? '');
+        if ($clientSecret === '') {
+            throw new RuntimeException('Checkout session missing client_secret for elements mode');
+        }
+        $_SESSION['stripe_pay'] = [
+            'order_id'      => $orderId,
+            'client_secret' => $clientSecret,
+            'session_id'    => $session->id,
+        ];
+        header('Location: ' . APP_URL . '/pay?order=' . $orderId, true, 303);
+        exit;
+    }
 
     header('Location: ' . $session->url, true, 303);
     exit;

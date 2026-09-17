@@ -9,6 +9,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 # Public clean URLs
 RewriteRule ^order$            order.php            [L]
 RewriteRule ^create-checkout$  create-checkout.php  [L]
+RewriteRule ^pay$              pay.php              [L]
 RewriteRule ^remaining-counts$ remaining-counts.php [L]
 RewriteRule ^success$          success.php          [L]
 RewriteRule ^cancel$           cancel.php           [L]

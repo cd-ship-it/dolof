@@ -19,6 +19,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $notice = 'Ordering is now ' . ($open === '1' ? 'OPEN' : 'CLOSED') . '.';
     }
 
+    if ($action === 'toggle_checkout_mode') {
+        $next = checkout_mode_is_elements($pdo) ? 'hosted' : 'elements';
+        dolos_setting_set($pdo, 'checkout_mode', $next);
+        $notice = $next === 'elements'
+            ? 'Payment is now ON-SITE (custom form).'
+            : 'Payment is now STRIPE PAGE (hosted Checkout).';
+    }
+
     if ($action === 'save_event') {
         dolos_setting_set($pdo, 'event_title', trim($_POST['event_title'] ?? ''));
         dolos_setting_set($pdo, 'event_date', trim($_POST['event_date'] ?? ''));
@@ -47,7 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $boxes  = get_all_boxes($pdo);
 $paid   = box_paid_counts($pdo);
 $held   = box_held_counts($pdo);
-$open   = ordering_is_open($pdo);
+$open             = ordering_is_open($pdo);
+$checkoutMode     = checkout_mode($pdo);
+$checkoutElements = $checkoutMode === 'elements';
 
 $totals = $pdo->query(
     "SELECT COUNT(*) AS orders, COALESCE(SUM(total_amount_cents),0) AS revenue
@@ -95,6 +105,25 @@ admin_head('Dashboard', 'dashboard');
     <?= $csrf ?>
     <input type="hidden" name="action" value="toggle_ordering">
     <button class="rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50"><?= $open ? 'Close ordering' : 'Open ordering' ?></button>
+  </form>
+</div>
+
+<div class="bg-white rounded-xl border p-4 mb-6 flex items-center justify-between gap-4">
+  <div>
+    <div class="font-semibold text-gray-900">Payment page</div>
+    <div class="text-sm <?= $checkoutElements ? 'text-indigo-700' : 'text-amber-700' ?>">
+      <?= $checkoutElements
+        ? 'ON-SITE — custom form with Stripe Elements'
+        : 'STRIPE PAGE — redirect to hosted Checkout (kill switch)' ?>
+    </div>
+    <p class="text-xs text-gray-500 mt-1">Flip to Stripe page if the on-site form has issues. Affects new checkouts only.</p>
+  </div>
+  <form method="post" class="shrink-0">
+    <?= $csrf ?>
+    <input type="hidden" name="action" value="toggle_checkout_mode">
+    <button class="rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50">
+      <?= $checkoutElements ? 'Use Stripe page' : 'Use on-site form' ?>
+    </button>
   </form>
 </div>
 
