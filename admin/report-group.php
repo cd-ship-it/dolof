@@ -7,6 +7,8 @@ require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/includes/db.php';
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/boxes.php';
+require_once dirname(__DIR__) . '/includes/helpers.php';
+require_once dirname(__DIR__) . '/includes/order_summary.php';
 require_once dirname(__DIR__) . '/includes/layout.php';
 
 require_admin();
@@ -28,20 +30,19 @@ $campusRaw   = $campusLabel === NO_CAMPUS ? '' : $campusLabel;
 $groupRaw    = $groupLabel === NO_GROUP ? '' : $groupLabel;
 
 $stmt = $pdo->prepare(
-    "SELECT o.*,
-            GROUP_CONCAT(CONCAT(oi.box_code, ' ×', oi.quantity) ORDER BY oi.box_code SEPARATOR ', ') AS items_summary
+    "SELECT o.*
        FROM " . DOLOS_TBL_ORDERS . " o
-       LEFT JOIN " . DOLOS_TBL_ITEMS . " oi ON oi.order_id = o.id
       WHERE {$statusSql} AND o.campus = ? AND o.lift_group = ?
-      GROUP BY o.id
       ORDER BY o.last_name, o.first_name, o.created_at"
 );
 $stmt->execute([$campusRaw, $groupRaw]);
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $grand = 0;
+$people = 0;
 foreach ($orders as $o) {
     $grand += (int) $o['total_amount_cents'];
+    $people += order_attendance_count($o);
 }
 
 $btStmt = $pdo->prepare(
@@ -73,8 +74,9 @@ admin_head('Report — ' . ($campusLabel !== '' ? $campusLabel : NO_CAMPUS), 're
 </h1>
 <p class="text-sm text-gray-500 mb-4">
   <?= count($orders) ?> order<?= count($orders) === 1 ? '' : 's' ?>
+  &middot; <?= $people ?> attending
   <?php if ($boxTotals): ?>
-    &middot; <?= e(implode(', ', array_map(fn($c, $n) => $c . ' ×' . $n, array_keys($boxTotals), $boxTotals))) ?>
+    &middot; lunches: <?= e(implode(', ', array_map(fn($c, $n) => $c . ' ×' . $n, array_keys($boxTotals), $boxTotals))) ?>
   <?php endif; ?>
   &middot; <?= e(money($grand)) ?> total
   &middot; <?= $status === 'paid' ? 'paid orders only' : 'paid + held' ?>
@@ -85,12 +87,9 @@ admin_head('Report — ' . ($campusLabel !== '' ? $campusLabel : NO_CAMPUS), 're
     <thead class="bg-gray-50 text-left text-gray-600 border-b">
       <tr>
         <th class="px-3 py-2">#</th>
-        <th class="px-3 py-2">Name</th>
-        <th class="px-3 py-2">Email</th>
-        <th class="px-3 py-2">Phone</th>
-        <th class="px-3 py-2 text-center">Adults</th>
-        <th class="px-3 py-2 text-center">Kids</th>
-        <th class="px-3 py-2">Boxes</th>
+        <th class="px-3 py-2">Registrant</th>
+        <th class="px-3 py-2">Contact</th>
+        <th class="px-3 py-2">Attendance (name · lunch)</th>
         <th class="px-3 py-2 text-right">Total</th>
         <th class="px-3 py-2">Status</th>
         <th class="px-3 py-2">Placed</th>
@@ -98,24 +97,40 @@ admin_head('Report — ' . ($campusLabel !== '' ? $campusLabel : NO_CAMPUS), 're
     </thead>
     <tbody>
     <?php foreach ($orders as $o): ?>
-      <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <?php
+        $attLines = order_attendance_lines($o);
+        $contact = trim((string) ($o['email'] ?? ''));
+        if ($contact === '') {
+            $contact = trim((string) ($o['phone'] ?? ''));
+        } elseif (trim((string) ($o['phone'] ?? '')) !== '') {
+            $contact .= ' · ' . trim((string) $o['phone']);
+        }
+      ?>
+      <tr class="border-b border-gray-100 hover:bg-gray-50 align-top">
         <td class="px-3 py-2">
           <a href="<?= e(APP_URL) ?>/admin/order-view?id=<?= (int) $o['id'] ?>" class="text-indigo-700 hover:underline"><?= (int) $o['id'] ?></a>
           <?php if ((int) $o['capacity_flag'] === 1): ?><span title="<?= e($o['flag_reason']) ?>" class="ml-1 text-red-600">⚑</span><?php endif; ?>
         </td>
-        <td class="px-3 py-2"><?= e(trim($o['first_name'] . ' ' . $o['last_name'])) ?></td>
-        <td class="px-3 py-2"><?= e($o['email']) ?></td>
-        <td class="px-3 py-2"><?= e($o['phone']) ?></td>
-        <td class="px-3 py-2 text-center"><?= (int) ($o['attending_adults'] ?? 0) ?></td>
-        <td class="px-3 py-2 text-center"><?= (int) ($o['attending_children'] ?? 0) ?></td>
-        <td class="px-3 py-2 font-mono text-xs"><?= e($o['items_summary'] ?? '') ?></td>
-        <td class="px-3 py-2 text-right"><?= e(money((int) $o['total_amount_cents'])) ?></td>
+        <td class="px-3 py-2 font-medium"><?= e(trim($o['first_name'] . ' ' . $o['last_name'])) ?></td>
+        <td class="px-3 py-2 text-gray-600"><?= e($contact) ?></td>
+        <td class="px-3 py-2">
+          <?php if ($attLines): ?>
+            <ul class="space-y-0.5 text-xs text-gray-800">
+              <?php foreach ($attLines as $line): ?>
+                <li><?= e($line) ?></li>
+              <?php endforeach; ?>
+            </ul>
+          <?php else: ?>
+            <span class="text-gray-400">—</span>
+          <?php endif; ?>
+        </td>
+        <td class="px-3 py-2 text-right whitespace-nowrap"><?= e(money((int) $o['total_amount_cents'])) ?></td>
         <td class="px-3 py-2"><?= e($o['status']) ?></td>
         <td class="px-3 py-2 whitespace-nowrap text-gray-500"><?= e(date('M j, g:ia', strtotime($o['created_at']))) ?></td>
       </tr>
     <?php endforeach; ?>
     <?php if (!$orders): ?>
-      <tr><td colspan="10" class="px-3 py-6 text-center text-gray-500">No orders in this group.</td></tr>
+      <tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">No orders in this group.</td></tr>
     <?php endif; ?>
     </tbody>
   </table>

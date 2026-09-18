@@ -140,7 +140,7 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
         $usedFallback = true;
     }
 
-    $eventTitle    = dolos_setting($pdo, 'event_title', 'Deacons Ordination Lunch Ordering Form');
+    $eventTitle    = app_title($pdo);
     $eventDate     = dolos_setting($pdo, 'event_date', '');
     $eventLocation = dolos_setting($pdo, 'event_location', 'Crosspoint Church');
 
@@ -193,10 +193,10 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
 
     $subject = $eventTitle . ' — Order Confirmed (#' . (int) $order['id'] . ')';
 
-    $replyTo    = email_list((string) env('reply_to', 'cmmp@crosspointchurchsv.org'));
+    $replyTo    = email_list((string) env('reply_to', 'cd@crosspointchurchsv.org'));
     $ccList     = email_list((string) env('cc', ''));
     $returnPath = trim((string) env('return_path', ''));
-    $fromEmail  = $replyTo[0] ?? 'cmmp@crosspointchurchsv.org';
+    $fromEmail  = $replyTo[0] ?? 'cd@crosspointchurchsv.org';
 
     $headers = [
         'From: Crosspoint Church <' . $fromEmail . '>',

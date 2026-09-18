@@ -117,7 +117,9 @@ foreach (get_active_boxes($pdo) as $b) {
     $activeByCode[$b['code']] = $b;
 }
 $validBoxCodes = array_keys($activeByCode);
-$validBoxCodes[] = 'none';
+if (SHOW_NOT_ORDERING) {
+    $validBoxCodes[] = 'none';
+}
 
 foreach ($attendees as $i => $a) {
     $n = $i + 1;

@@ -1,50 +1,54 @@
 <?php
 /**
- * CSV export of paid orders — one row per order, a quantity column per box.
+ * CSV export of paid orders — one row per attendee (registrant + one lunch choice).
  */
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/includes/db.php';
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/boxes.php';
 require_once dirname(__DIR__) . '/includes/helpers.php';
+require_once dirname(__DIR__) . '/includes/order_summary.php';
 
 require_admin();
 
 $boxes = get_all_boxes($pdo);
-$codes = array_column($boxes, 'code');
+$boxName = array_column($boxes, 'name', 'code');
+$boxPrice = array_column($boxes, 'price_cents', 'code');
 
 $orders = $pdo->query(
-    "SELECT * FROM " . DOLOS_TBL_ORDERS . " WHERE status = 'paid' ORDER BY created_at"
+    "SELECT * FROM " . DOLOS_TBL_ORDERS . " WHERE status = 'paid' ORDER BY created_at, id"
 )->fetchAll(PDO::FETCH_ASSOC);
 
-$itemStmt = $pdo->query(
-    "SELECT oi.order_id, oi.box_code, oi.quantity
-       FROM " . DOLOS_TBL_ITEMS . " oi
-       JOIN " . DOLOS_TBL_ORDERS . " o ON o.id = oi.order_id
-      WHERE o.status = 'paid'"
-)->fetchAll(PDO::FETCH_ASSOC);
-
-$qtyByOrder = [];
-foreach ($itemStmt as $r) {
-    $qtyByOrder[(int) $r['order_id']][$r['box_code']] = (int) $r['quantity'];
-}
-
-$filename = 'dolos-orders-' . date('Y-m-d') . '.csv';
+$filename = 'dolos-attendance-' . date('Y-m-d') . '.csv';
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 
 $out = fopen('php://output', 'w');
 fprintf($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
 
-$header = ['Order #', 'First Name', 'Last Name', 'Email', 'Phone', 'Campus', 'Lift Group', 'Adults', 'Adult Names', 'Children (12 & under)', 'Child Names'];
-foreach ($codes as $c) {
-    $header[] = 'Box ' . $c;
-}
-$header = array_merge($header, ['Total Paid', 'Placed At', 'Stripe Session', 'Flagged', 'Flag Reason']);
-fputcsv($out, $header);
+fputcsv($out, [
+    'Order #',
+    'Registrant First',
+    'Registrant Last',
+    'Email',
+    'Phone',
+    'Campus',
+    'Lift Group',
+    'Attendee First',
+    'Attendee Last',
+    'Age Group',
+    'Lunch Code',
+    'Lunch Name',
+    'Lunch Price',
+    'Order Total',
+    'Placed At',
+    'Stripe Session',
+    'Flagged',
+    'Flag Reason',
+]);
 
 foreach ($orders as $o) {
-    $row = [
+    $base = [
         (int) $o['id'],
         $o['first_name'],
         $o['last_name'],
@@ -52,20 +56,45 @@ foreach ($orders as $o) {
         $o['phone'],
         $o['campus'],
         $o['lift_group'],
-        (int) ($o['attending_adults'] ?? 0),
-        implode('; ', array_map('format_attendee_line', decode_attendees($o['adult_names'] ?? null))),
-        (int) ($o['attending_children'] ?? 0),
-        implode('; ', array_map('format_attendee_line', decode_attendees($o['child_names'] ?? null))),
     ];
-    foreach ($codes as $c) {
-        $row[] = $qtyByOrder[(int) $o['id']][$c] ?? 0;
+    $tail = [
+        number_format($o['total_amount_cents'] / 100, 2, '.', ''),
+        $o['created_at'],
+        $o['stripe_session_id'],
+        ((int) $o['capacity_flag'] === 1) ? 'YES' : '',
+        $o['flag_reason'],
+    ];
+
+    $people = [];
+    foreach (decode_attendees($o['adult_names'] ?? null) as $a) {
+        $people[] = ['a' => $a, 'age' => 'Adult'];
     }
-    $row[] = number_format($o['total_amount_cents'] / 100, 2, '.', '');
-    $row[] = $o['created_at'];
-    $row[] = $o['stripe_session_id'];
-    $row[] = ((int) $o['capacity_flag'] === 1) ? 'YES' : '';
-    $row[] = $o['flag_reason'];
-    fputcsv($out, $row);
+    foreach (decode_attendees($o['child_names'] ?? null) as $a) {
+        $people[] = ['a' => $a, 'age' => 'Child (12 & under)'];
+    }
+
+    if ($people === []) {
+        fputcsv($out, array_merge($base, ['', '', '', '', '', ''], $tail));
+        continue;
+    }
+
+    foreach ($people as $p) {
+        $a = $p['a'];
+        $code = trim((string) ($a['box'] ?? ''));
+        $lunchCode = ($code === '' || $code === 'none') ? 'none' : $code;
+        $lunchName = ($lunchCode === 'none')
+            ? '留位但不點餐'
+            : (string) ($boxName[$lunchCode] ?? $lunchCode);
+        $price = ($lunchCode === 'none') ? 0 : (int) ($boxPrice[$lunchCode] ?? 0);
+        fputcsv($out, array_merge($base, [
+            $a['first'] ?? '',
+            $a['last'] ?? '',
+            $p['age'],
+            $lunchCode,
+            $lunchName,
+            number_format($price / 100, 2, '.', ''),
+        ], $tail));
+    }
 }
 
 fclose($out);

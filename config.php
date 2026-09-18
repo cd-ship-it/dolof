@@ -42,6 +42,8 @@ function env_bool(string $key, bool $default = false): bool
 
 define('APP_ENV', env('APP_ENV', 'development'));
 define('APP_URL', rtrim(env('APP_URL', 'http://localhost'), '/'));
+// Public site / browser title. Admin “event title” overrides this when set.
+define('APP_TITLE', (string) env('APP_TITLE', 'Deacons Ordination Lunch Ordering Form'));
 
 define('DB_HOST', env('DB_HOST', '127.0.0.1'));
 define('DB_PORT', env('DB_PORT', '3306'));
@@ -70,7 +72,11 @@ define('ORDERING_END',   (string) env('ORDERING_END', ''));
 
 // Order form: grey out later cards until earlier sections are complete.
 // Set ORDER_FORM_PROGRESSIVE_STEPS=1 in .env to re-enable.
-define('ORDER_FORM_PROGRESSIVE_STEPS', filter_var(env('ORDER_FORM_PROGRESSIVE_STEPS', '1'), FILTER_VALIDATE_BOOLEAN));
+define('ORDER_FORM_PROGRESSIVE_STEPS', filter_var(env('ORDER_FORM_PROGRESSIVE_STEPS', '0'), FILTER_VALIDATE_BOOLEAN));
+
+// Order form: show the "留位但不點餐" (not ordering) lunch option.
+// Set SHOW_NOT_ORDERING=1 in .env to enable.
+define('SHOW_NOT_ORDERING', env_bool('SHOW_NOT_ORDERING', false));
 
 // Pending-order hold. Kept a few minutes longer than the Stripe Checkout
 // session so our seat reservation always outlives Stripe's payment window.

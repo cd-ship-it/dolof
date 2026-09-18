@@ -8,8 +8,13 @@
  */
 require_once __DIR__ . '/helpers.php';
 
-function layout_head(string $title = 'Deacons Ordination Lunch Ordering Form'): void
+/**
+ * @param string|null $pageLabel  Optional page label, e.g. "Order" → "Order — {APP_TITLE}"
+ */
+function layout_head(?string $pageLabel = null): void
 {
+    $app = function_exists('app_title') ? app_title() : (defined('APP_TITLE') ? APP_TITLE : 'Deacons Ordination Lunch Ordering Form');
+    $title = ($pageLabel !== null && $pageLabel !== '') ? ($pageLabel . ' — ' . $app) : $app;
     $base = defined('APP_URL') ? APP_URL : '';
     ?>
 <!DOCTYPE html>
@@ -26,7 +31,7 @@ function layout_head(string $title = 'Deacons Ordination Lunch Ordering Form'): 
     <!-- <a href="<?= e($base) ?>/order">
       <img src="<?= e($base) ?>/img/xpt-logo.png" alt="Crosspoint Church 匯點教會" class="h-12 sm:h-14 w-auto">
     </a> -->
-    <span class="font-bold text-indigo-800 text-base sm:text-lg">Deacons Ordination Lunch Ordering Form</span>
+    <span class="font-bold text-indigo-800 text-base sm:text-lg"><?= e($app) ?></span>
   </div>
 </header>
 <main class="max-w-3xl mx-auto px-4 py-8">

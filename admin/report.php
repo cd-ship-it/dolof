@@ -11,6 +11,8 @@ require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/includes/db.php';
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/boxes.php';
+require_once dirname(__DIR__) . '/includes/helpers.php';
+require_once dirname(__DIR__) . '/includes/order_summary.php';
 require_once dirname(__DIR__) . '/includes/layout.php';
 
 require_admin();
@@ -32,17 +34,18 @@ $names = array_column($boxes, 'name', 'code');
 const NO_CAMPUS = '(no campus)';
 const NO_GROUP  = '(no life group)';
 
-// ── Aggregate: revenue per Campus/Life Group ────────────────────────────────
+// ── Aggregate: revenue + people per Campus/Life Group ───────────────────────
 $rows = $pdo->query(
     "SELECT o.campus, o.lift_group,
-            COALESCE(SUM(o.total_amount_cents), 0) AS revenue_cents
+            COALESCE(SUM(o.total_amount_cents), 0) AS revenue_cents,
+            COALESCE(SUM(o.attending_adults + o.attending_children), 0) AS people
        FROM " . DOLOS_TBL_ORDERS . " o
       WHERE {$statusSql}
       GROUP BY o.campus, o.lift_group
       ORDER BY o.campus, o.lift_group"
 )->fetchAll(PDO::FETCH_ASSOC);
 
-// ── Aggregate: box quantities per Campus/Life Group ─────────────────────────
+// ── Aggregate: lunch quantities per Campus/Life Group (one lunch per attendee rolled up) ─
 $qtyRows = $pdo->query(
     "SELECT o.campus, o.lift_group, oi.box_code, SUM(oi.quantity) AS qty
        FROM " . DOLOS_TBL_ORDERS . " o
@@ -61,6 +64,7 @@ foreach ($rows as $r) {
         'campus_raw' => $r['campus'],
         'group_raw'  => $r['lift_group'],
         'revenue'    => (int) $r['revenue_cents'],
+        'people'     => (int) $r['people'],
         'qty'        => array_fill_keys($codes, 0),
     ];
 }
@@ -72,9 +76,10 @@ foreach ($qtyRows as $r) {
 }
 ksort($groups);
 
-$grand = ['revenue' => 0, 'qty' => array_fill_keys($codes, 0)];
+$grand = ['revenue' => 0, 'people' => 0, 'qty' => array_fill_keys($codes, 0)];
 foreach ($groups as $g) {
     $grand['revenue'] += $g['revenue'];
+    $grand['people']  += $g['people'];
     foreach ($codes as $c) {
         $grand['qty'][$c] += $g['qty'][$c];
     }
@@ -88,16 +93,16 @@ if (($_GET['export'] ?? '') === 'csv') {
     $out = fopen('php://output', 'w');
     fprintf($out, "\xEF\xBB\xBF");
 
-    $header = ['Campus', 'Life Group'];
+    $header = ['Campus', 'Life Group', 'People'];
     foreach ($codes as $c) {
         $header[] = $c . ' — ' . ($names[$c] ?? '');
     }
-    $header[] = 'Total Boxes';
+    $header[] = 'Lunches';
     $header[] = 'Revenue';
     fputcsv($out, $header);
 
     foreach ($groups as $g) {
-        $line = [$g['campus'], $g['lift_group']];
+        $line = [$g['campus'], $g['lift_group'], $g['people']];
         $tot = 0;
         foreach ($codes as $c) { $line[] = $g['qty'][$c]; $tot += $g['qty'][$c]; }
         $line[] = $tot;
@@ -105,7 +110,7 @@ if (($_GET['export'] ?? '') === 'csv') {
         fputcsv($out, $line);
     }
 
-    $line = ['TOTAL', ''];
+    $line = ['TOTAL', '', $grand['people']];
     $tot = 0;
     foreach ($codes as $c) { $line[] = $grand['qty'][$c]; $tot += $grand['qty'][$c]; }
     $line[] = $tot;
@@ -139,20 +144,21 @@ admin_head('Report', 'report');
       <tr>
         <th class="px-3 py-2">Campus</th>
         <th class="px-3 py-2">Life Group</th>
+        <th class="px-3 py-2 text-center">People</th>
         <?php foreach ($codes as $c): ?>
           <th class="px-3 py-2 text-center align-bottom">
             <span class="inline-flex items-center justify-center h-5 w-5 rounded bg-indigo-100 text-indigo-800 font-bold text-xs"><?= e($c) ?></span>
             <span class="block mt-1 text-xs font-normal text-gray-500 leading-tight w-24 mx-auto"><?= e($names[$c] ?? '') ?></span>
           </th>
         <?php endforeach; ?>
-        <th class="px-3 py-2 text-center">Total boxes</th>
+        <th class="px-3 py-2 text-center">Lunches</th>
         <th class="px-3 py-2 text-right">Revenue</th>
       </tr>
     </thead>
     <tbody>
     <?php
     if (!$groups) {
-        echo '<tr><td colspan="' . (4 + count($codes)) . '" class="px-3 py-6 text-center text-gray-500">No orders yet.</td></tr>';
+        echo '<tr><td colspan="' . (5 + count($codes)) . '" class="px-3 py-6 text-center text-gray-500">No orders yet.</td></tr>';
     }
     $prevCampus = null;
     $campusSub  = null;
@@ -160,6 +166,7 @@ admin_head('Report', 'report');
         if ($campusSub === null) return;
         echo '<tr class="bg-gray-50 font-semibold border-b">';
         echo '<td class="px-3 py-2" colspan="2">' . e($prevCampus) . ' subtotal</td>';
+        echo '<td class="px-3 py-2 text-center">' . $campusSub['people'] . '</td>';
         $t = 0;
         foreach ($codes as $c) { echo '<td class="px-3 py-2 text-center">' . $campusSub['qty'][$c] . '</td>'; $t += $campusSub['qty'][$c]; }
         echo '<td class="px-3 py-2 text-center">' . $t . '</td>';
@@ -173,10 +180,11 @@ admin_head('Report', 'report');
             $campusSub = null;
         }
         if ($campusSub === null) {
-            $campusSub = ['revenue' => 0, 'qty' => array_fill_keys($codes, 0)];
+            $campusSub = ['revenue' => 0, 'people' => 0, 'qty' => array_fill_keys($codes, 0)];
         }
         $prevCampus = $g['campus'];
         $campusSub['revenue'] += $g['revenue'];
+        $campusSub['people']  += $g['people'];
         $rowTotal = 0;
         foreach ($codes as $c) { $campusSub['qty'][$c] += $g['qty'][$c]; $rowTotal += $g['qty'][$c]; }
 
@@ -189,6 +197,7 @@ admin_head('Report', 'report');
         <td class="px-3 py-2">
           <a href="<?= e($groupUrl) ?>" class="font-medium text-indigo-700 hover:underline"><?= e($g['lift_group']) ?></a>
         </td>
+        <td class="px-3 py-2 text-center"><?= (int) $g['people'] ?></td>
         <?php foreach ($codes as $c): ?>
           <td class="px-3 py-2 text-center <?= $g['qty'][$c] ? 'font-medium' : 'text-gray-300' ?>"><?= $g['qty'][$c] ?: 0 ?></td>
         <?php endforeach; ?>
@@ -201,6 +210,7 @@ admin_head('Report', 'report');
     <?php if ($groups): ?>
       <tr class="bg-indigo-600 text-white font-bold">
         <td class="px-3 py-2" colspan="2">GRAND TOTAL</td>
+        <td class="px-3 py-2 text-center"><?= (int) $grand['people'] ?></td>
         <?php $gt = 0; foreach ($codes as $c): $gt += $grand['qty'][$c]; ?>
           <td class="px-3 py-2 text-center"><?= $grand['qty'][$c] ?></td>
         <?php endforeach; ?>
@@ -213,7 +223,8 @@ admin_head('Report', 'report');
 </div>
 
 <p class="text-xs text-gray-500 mt-2">
-  Box columns are quantities. Click a Life Group to see its individual orders.
+  People = attending adults + children. Lunch columns count ordered boxes (one per attendee who ordered).
+  Click a Life Group to see each registrant’s attendance list.
   <?= $status === 'paid' ? 'Showing paid orders only.' : 'Showing paid orders plus holds that have not expired.' ?>
 </p>
 </main></body></html>

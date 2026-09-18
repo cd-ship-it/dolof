@@ -69,6 +69,9 @@ $heldOrders = (int) $pdo->query(
 )->fetchColumn();
 
 $eventTitle    = dolos_setting($pdo, 'event_title', '');
+if ($eventTitle === null || $eventTitle === '') {
+    $eventTitle = APP_TITLE;
+}
 $eventDate     = dolos_setting($pdo, 'event_date', '');
 $eventLocation = dolos_setting($pdo, 'event_location', '');
 $csrf = csrf_input();
@@ -173,7 +176,7 @@ admin_head('Dashboard', 'dashboard');
 <form method="post" class="bg-white rounded-xl border p-4">
   <?= $csrf ?>
   <input type="hidden" name="action" value="save_event">
-  <h2 class="font-semibold text-gray-900 mb-3">Event details (shown on confirmation email)</h2>
+  <h2 class="font-semibold text-gray-900 mb-3">Event details (site header, page titles, and confirmation email)</h2>
   <div class="grid sm:grid-cols-3 gap-3">
     <label class="block text-sm">Title
       <input type="text" name="event_title" value="<?= e($eventTitle) ?>" class="mt-1 w-full rounded border-gray-300 text-sm">

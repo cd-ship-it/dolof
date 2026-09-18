@@ -57,6 +57,22 @@ function ordering_is_open(PDO $pdo): bool
     return dolos_setting($pdo, 'ordering_open', '1') === '1';
 }
 
+/**
+ * Site / event title for headers, <title>, and emails.
+ * Uses admin-edited event_title when present; otherwise APP_TITLE from config.
+ */
+function app_title(?PDO $pdo = null): string
+{
+    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
+    if ($pdo instanceof PDO) {
+        $t = trim((string) dolos_setting($pdo, 'event_title', ''));
+        if ($t !== '') {
+            return $t;
+        }
+    }
+    return defined('APP_TITLE') ? APP_TITLE : 'Deacons Ordination Lunch Ordering Form';
+}
+
 /** Parse ORDERING_START / ORDERING_END from .env (Pacific Time). */
 function ordering_env_time(string $constantOrRaw): ?DateTimeImmutable
 {
