@@ -198,7 +198,7 @@
   "js.sold_out": { "zh": "售罄", "en": "Sold out" },
   "js.left": { "zh": "{n} 份剩餘", "en": "{n} left" },
   "js.not_ordering": { "zh": "留位但不點餐", "en": "Reserve seat, no lunch" },
-  "js.add_to_bill": { "zh": "加入帳單", "en": "Add to bill" },
+  "js.add_to_bill": { "zh": "加入帳單", "en": "Add to cart" },
   "js.save_changes": { "zh": "更新", "en": "Update" },
   "js.edit": { "zh": "更改", "en": "Edit" },
   "js.cancel": { "zh": "取消", "en": "Cancel" },
