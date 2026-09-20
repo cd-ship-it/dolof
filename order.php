@@ -258,7 +258,13 @@ layout_head('Order');
         $noLgValue = 'No Life Group';
         $noLgSelected = ($old['lift_group'] ?? '') === $noLgValue;
       ?>
-      <div class="relative mt-1">
+      <label class="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
+        <input type="checkbox" id="no-life-group-option" class="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+               <?= $noLgSelected ? 'checked' : '' ?>
+               <?= $campusesConfigured ? '' : 'disabled' ?>>
+        <span><?= e($noLgLabel) ?></span>
+      </label>
+      <div class="relative">
         <input type="text" name="lift_group" id="lift-group-input"
                required maxlength="20" autocomplete="one-time-code" autocapitalize="off" autocorrect="off" spellcheck="false"
                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="lift-group-list"
@@ -270,12 +276,6 @@ layout_head('Order');
             class="absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-md border border-gray-200 bg-white text-sm shadow-lg"></ul>
       </div>
       <!-- <span class="text-xs text-gray-500 block" id="lift-group-hint">Choose your campus above to see its life groups, or type your own (max 20 characters).</span> -->
-      <label class="mt-2 flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
-        <input type="checkbox" id="no-life-group-option" class="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
-               <?= $noLgSelected ? 'checked' : '' ?>
-               <?= $campusesConfigured ? '' : 'disabled' ?>>
-        <span><?= e($noLgLabel) ?></span>
-      </label>
       <!-- <p id="lift-group-error" class="hidden text-sm font-medium text-red-600">Please enter a Lift Group Name, or check “I don't join a Life Group”.</p> -->
     </div>
   </div>
