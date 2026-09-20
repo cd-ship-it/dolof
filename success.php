@@ -76,7 +76,7 @@ layout_head('Thank you');
     $isRsvpOrder = ($order['payment_method'] ?? '') === 'rsvp';
   ?>
   <div class="card text-center mb-6">
-    <h1 class="text-2xl font-bold text-indigo-900"><?= $isRsvpOrder ? 'RSVP confirmed!' : '午餐訂購完成!' ?></h1>
+    <h1 class="text-2xl font-bold text-indigo-900"><?= $isRsvpOrder ? 'RSVP confirmed!' : 'Your order is confirmed!' ?></h1>
     <?php if ($confirmEmailOk): ?>
       <p class="text-gray-600 mt-2">A confirmation email is on its way to <strong><?= e($confirmEmail) ?></strong>.</p>
     <?php else: ?>
@@ -85,10 +85,10 @@ layout_head('Thank you');
   </div>
   <?php render_order_summary($order, [
       'show_order_id' => true,
-      'total_label'   => $isRsvpOrder ? '總額' : '已付總額',
+      'total_label'   => $isRsvpOrder ? 'Total' : 'Total Paid',
   ]); ?>
   <div class="mt-6 text-center space-y-2">
-    <p class="text-gray-700">你現在可關閉此頁面。</p>
+    <p class="text-gray-700">You can now close this page.</p>
     <p><a href="<?= e(APP_URL) ?>/order" class="text-indigo-600 underline hover:text-indigo-800">再訂購午餐</a></p>
   </div>
 <?php else: ?>
@@ -96,7 +96,7 @@ layout_head('Thank you');
     <h1 class="text-xl font-bold text-gray-800">Payment received</h1>
     <p class="text-gray-600 mt-2">If you just paid, your order is being finalized. You'll get a confirmation email shortly.</p>
     <div class="mt-4 space-y-2">
-      <p class="text-gray-700">你現在可關閉此頁面。</p>
+      <p class="text-gray-700">You can now close this page.</p>
       <p><a href="<?= e(APP_URL) ?>/order" class="text-indigo-600 underline hover:text-indigo-800">再訂購午餐</a></p>
     </div>
   </div>

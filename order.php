@@ -46,7 +46,7 @@ layout_head('Order');
 <!-- <h1 class="text-2xl font-bold text-indigo-900 mb-1">Luncheon Box Order</h1> -->
 <!-- <p class="text-gray-600 mb-6">Select your lunch boxes and pay online to confirm your order.</p> -->
 
-<div class="mb-4 flex flex-wrap items-center justify-end gap-2 text-sm">
+<div class="mb-4 flex flex-wrap items-center justify-start gap-2 text-sm">
   <a href="<?= e(order_lang_url('zh', $cancelled)) ?>"
      class="<?= $lang === 'zh' ? 'font-bold text-indigo-800' : 'text-gray-600 hover:text-indigo-700' ?>"><?= e(t('lang.zh')) ?></a>
   <span class="text-gray-400" aria-hidden="true">|</span>
