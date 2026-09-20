@@ -19,5 +19,11 @@ try {
     $offset = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('P');
     $pdo->exec('SET time_zone = ' . $pdo->quote($offset));
 } catch (PDOException $e) {
-    throw new RuntimeException('Database connection failed: ' . $e->getMessage());
+    require_once __DIR__ . '/logger.php';
+    app_log('high', 'DB', 'connection failed', [
+        'error' => $e->getMessage(),
+        'code'  => $e->getCode(),
+    ]);
+    // Never surface host/user/SQL details to the client.
+    throw new RuntimeException('Database connection failed.');
 }

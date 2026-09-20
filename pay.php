@@ -105,7 +105,7 @@ layout_head('Pay');
   <p class="text-xs text-gray-500 text-center">
     Secured by Stripe. Card details never touch our servers. Your order is confirmed only after payment succeeds.
   </p>
-  <a href="<?= e(APP_URL) ?>/cancel?order=<?= (int) $orderId ?>"
+  <a href="<?= e(order_cancel_url($orderId)) ?>"
      class="block w-full rounded-md border-2 border-gray-300 px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50"
      id="pay-cancel">
     Cancel order

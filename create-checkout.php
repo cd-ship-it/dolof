@@ -246,7 +246,7 @@ try {
         $sessionParams['billing_address_collection'] = 'auto';
     } else {
         $sessionParams['success_url'] = APP_URL . '/success?session_id={CHECKOUT_SESSION_ID}';
-        $sessionParams['cancel_url']  = APP_URL . '/cancel?order=' . $orderId;
+        $sessionParams['cancel_url']  = order_cancel_url($orderId);
     }
 
     $session = \Stripe\Checkout\Session::create($sessionParams);

@@ -85,6 +85,10 @@
     "en": "Please enter an email or phone number."
   },
   "details.email": { "zh": "Email", "en": "Email" },
+  "details.email_error": {
+    "zh": "請輸入有效的電郵地址。",
+    "en": "Please enter a valid email address."
+  },
   "details.or": { "zh": "或", "en": "or" },
   "details.phone": {
     "zh": "Phone (建議使用電郵以便收到電子收據。)",

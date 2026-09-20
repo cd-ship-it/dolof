@@ -41,6 +41,19 @@ function env_bool(string $key, bool $default = false): bool
 }
 
 define('APP_ENV', env('APP_ENV', 'development'));
+
+// Hide PHP errors from browsers in production; keep full reporting for logs.
+if (APP_ENV === 'production') {
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    ini_set('log_errors', '1');
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
+}
+
 define('APP_URL', rtrim(env('APP_URL', 'http://localhost'), '/'));
 // Public site / browser title. Admin “event title” overrides this when set.
 define('APP_TITLE', (string) env('APP_TITLE', '執事按立禮感恩午宴'));

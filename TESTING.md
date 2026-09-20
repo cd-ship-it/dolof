@@ -90,7 +90,8 @@ Submit via the real form (not just curl) at least once per case so client-side v
 
 - [ ] Use decline test card `4000 0000 0000 0002` → Stripe shows decline, user stays on Stripe page (can retry) — order stays `pending` with an active hold until retried or abandoned.
 - [ ] Use `4000 0025 0000 3155` (3D Secure required) → complete the authentication challenge → payment succeeds → same happy-path assertions as §4.
-- [ ] On Stripe Checkout, click "back"/close the tab → lands on `/cancel?order=<id>` → order `status='cancelled'`, `hold_expires_at` NULL, `logs/` shows "checkout cancelled by user" → redirected to `/order?cancelled=1` with the amber "Payment was not completed" banner.
+- [ ] On Stripe Checkout, click "back"/close the tab → lands on `/cancel?order=<id>&token=<hmac>` → order `status='cancelled'`, `hold_expires_at` NULL, `logs/` shows "checkout cancelled by user" → redirected to `/order?cancelled=1` with the amber "Payment was not completed" banner.
+- [ ] Hitting `/cancel?order=<other_pending_id>` without a valid `token` does not cancel that order (hold remains); logs show "cancel rejected".
 - [ ] After cancel, re-submitting the same selections works normally (no stale hold blocking capacity).
 - [ ] Let a Checkout session sit unpaid until Stripe fires `checkout.session.expired` (or trigger via Stripe CLI: `stripe trigger checkout.session.expired` with matching metadata) → webhook marks order `expired`, seat released, confirmed via `remaining-counts.php` increasing.
 

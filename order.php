@@ -48,10 +48,22 @@ layout_head('Order');
 
 <div class="mb-4 flex flex-wrap items-center justify-start gap-2 text-sm">
   <a href="<?= e(order_lang_url('zh', $cancelled)) ?>"
-     class="<?= $lang === 'zh' ? 'font-bold text-indigo-800' : 'text-gray-600 hover:text-indigo-700' ?>"><?= e(t('lang.zh')) ?></a>
-  <span class="text-gray-400" aria-hidden="true">|</span>
+     class="rounded-md border-2 px-4 py-2 font-medium <?= $lang === 'zh'
+       ? 'border-indigo-600 bg-indigo-50 text-indigo-800'
+       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' ?>"><?= e(t('lang.zh')) ?></a>
   <a href="<?= e(order_lang_url('en', $cancelled)) ?>"
-     class="<?= $lang === 'en' ? 'font-bold text-indigo-800' : 'text-gray-600 hover:text-indigo-700' ?>"><?= e(t('lang.en')) ?></a>
+     class="rounded-md border-2 px-4 py-2 font-medium <?= $lang === 'en'
+       ? 'border-indigo-600 bg-indigo-50 text-indigo-800'
+       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' ?>"><?= e(t('lang.en')) ?></a>
+  <span class="text-gray-400 px-1 select-none" aria-hidden="true">|</span>
+  <button type="button" id="font-smaller"
+          class="rounded-md border-2 border-gray-300 bg-white px-4 py-2 font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+    <?= e(t('font.smaller')) ?>
+  </button>
+  <button type="button" id="font-bigger"
+          class="rounded-md border-2 border-gray-300 bg-white px-4 py-2 font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+    <?= e(t('font.bigger')) ?>
+  </button>
 </div>
 
 <?php if ($cancelled): ?>
@@ -155,17 +167,6 @@ layout_head('Order');
 <form method="post" action="<?= e(APP_URL) ?>/create-checkout" class="space-y-6" id="order-form">
   <?= csrf_input() ?>
 
-  <div class="flex flex-wrap gap-3">
-    <button type="button" id="font-smaller"
-            class="rounded-md border-2 border-gray-300 bg-white px-4 py-2 text-sm font-large text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-        <?= e(t('font.smaller')) ?>
-    </button>
-    <button type="button" id="font-bigger"
-            class="rounded-md border-2 border-gray-300 bg-white px-4 py-2 text-sm font-large text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-      <?= e(t('font.bigger')) ?>
-    </button>
-  </div>
-
   <div class="card space-y-4 transition-opacity duration-200<?= $formBrowseOk ? '' : ' form-step-locked' ?>" data-form-step="details"<?= $formBrowseOk ? '' : ' aria-disabled="true"' ?>>
     <h2 class="text-2xl font-semibold text-gray-900"><?= e(t('details.heading')) ?></h2>
     <div class="grid sm:grid-cols-2 gap-4">
@@ -184,11 +185,15 @@ layout_head('Order');
     <p class="text-xl font-medium text-gray-700"><span class="text-red-600">*</span> <?= e(t('details.contact_required')) ?> </p>
     <!--<p class="text-sm  font-medium text-gray-700"><span class="text-red-600">*</span> Email or phone is required (at least one). Email is recommanded so you can receive an electronic receipt.</p>-->
     <div class="flex flex-col sm:flex-row sm:items-end gap-4">
-      <label class="block flex-1">
-        <span class="text-xl font-medium text-gray-700"><?= e(t('details.email')) ?></span>
-        <input type="email" name="email" maxlength="200" value="<?= e($old['email'] ?? '') ?>"
-               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-      </label>
+      <div class="flex-1">
+        <label class="block">
+          <span class="text-xl font-medium text-gray-700"><?= e(t('details.email')) ?></span>
+          <input type="email" name="email" maxlength="200" value="<?= e($old['email'] ?? '') ?>"
+                 class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                 autocomplete="email">
+        </label>
+        <p id="email-error" class="hidden mt-1 text-sm font-medium text-red-600"><?= e(t('details.email_error')) ?></p>
+      </div>
       <span class="text-center text-xl font-semibold text-gray-500 sm:pb-2.5" aria-hidden="true"><?= e(t('details.or')) ?></span>
       <label class="block flex-1">
         <span class="text-xl font-medium text-gray-700"><?= e(t('details.phone')) ?></span>
@@ -326,26 +331,42 @@ layout_head('Order');
   <div class="my-4 w-full max-w-md rounded-xl bg-white p-4 shadow-xl space-y-3 text-sm">
     <h2 class="text-base font-bold text-indigo-900"><?= e(t('modal.title')) ?></h2>
 
-    <div class="text-gray-800 space-y-0.5 text-xs">
-      <div><span class="text-gray-500"><?= e(t('modal.name')) ?></span> <span id="sum-name"></span></div>
-      <div><span class="text-gray-500"><?= e(t('modal.email')) ?></span> <span id="sum-email"></span></div>
-      <div><span class="text-gray-500"><?= e(t('modal.campus')) ?></span> <span id="sum-campus"></span></div>
-      <div id="sum-lg-row"><span class="text-gray-500"><?= e(t('modal.lift_group')) ?></span> <span id="sum-lg"></span></div>
-      <div id="sum-phone-row"><span class="text-gray-500"><?= e(t('modal.phone')) ?></span> <span id="sum-phone"></span></div>
-      <div><span class="text-gray-500"><?= e(t('modal.attendance')) ?></span> <span id="sum-att-count"></span></div>
-      <div id="sum-attendee-names-row" class="hidden pl-3 text-gray-600"><span id="sum-attendee-names"></span></div>
+    <!-- Same layout as includes/order_summary.php (used on /pay and /success). -->
+    <div class="text-gray-800 space-y-0.5">
+      <div>
+        <span class="font-bold text-gray-900">姓名</span> <span id="sum-name"></span>
+        <span id="sum-phone-block" class="hidden">
+          <span class="text-gray-300 mx-1.5">·</span>
+          <span class="font-bold text-gray-900">電話</span> <span id="sum-phone"></span>
+        </span>
+      </div>
+      <div id="sum-email-row" class="hidden"><span class="text-gray-500">Email:</span> <span id="sum-email"></span></div>
+      <div>
+        <span class="font-bold text-gray-900">Campus</span> <span id="sum-campus"></span>
+        <span class="text-gray-300 mx-1.5">·</span>
+        <span class="font-bold text-gray-900">Lift Group</span> <span id="sum-lg"></span>
+      </div>
     </div>
 
-    <table class="w-full text-xs border-t border-gray-200 pt-1">
-      <tbody id="sum-rows"></tbody>
-      <tfoot>
-        <tr class="border-t border-gray-200">
-          <td class="pt-2 font-bold text-sm"><?= e(t('modal.total')) ?></td>
-          <td></td>
-          <td class="pt-2 text-right text-base font-bold text-indigo-900" id="sum-total">$0.00</td>
-        </tr>
-      </tfoot>
-    </table>
+    <div id="sum-table-wrap" class="hidden">
+      <table class="w-full text-sm border-t border-gray-200 pt-2">
+        <thead>
+          <tr class="text-left text-gray-500">
+            <th class="py-1">Name</th>
+            <th class="py-1">Lunch box</th>
+            <th class="py-1 text-right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="sum-rows"></tbody>
+        <tfoot>
+          <tr>
+            <td class="pt-3 font-bold text-base" colspan="2"><?= e(t('modal.total')) ?></td>
+            <td class="pt-3 font-bold text-base text-right text-indigo-900" id="sum-total">$0.00</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p id="sum-attendance-only" class="hidden text-sm text-gray-600 border-t border-gray-200 pt-2"><?= e(t('modal.attendance_only')) ?></p>
 
     <button type="button" id="confirm-go" class="btn-primary w-full text-center"><?= e(t('modal.confirm_pay')) ?></button>
 
@@ -367,6 +388,14 @@ layout_head('Order');
           'name' => box_localized_name($b['code'], (string) $b['name']),
       ], $boxes),
       'name',
+      'code'
+  ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  var BOX_EN_ABBREV = <?= json_encode(array_column(
+      array_map(static fn($b) => [
+          'code' => $b['code'],
+          'en'   => dish_en_abbrev(dish_english_name((string) $b['code']), 30),
+      ], $boxes),
+      'en',
       'code'
   ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   var BOXES = <?= json_encode(array_values(array_map(fn($b) => [
@@ -439,6 +468,26 @@ layout_head('Order');
     phoneEl.addEventListener('input', reformatPhone);
     phoneEl.addEventListener('blur', reformatPhone);
     reformatPhone();
+  }
+
+  // Validate email on blur; empty is allowed (phone can satisfy contact).
+  var emailEl = form.querySelector('input[name="email"]');
+  var emailError = document.getElementById('email-error');
+  function isValidEmail(v) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }
+  function syncEmailError() {
+    if (!emailEl || !emailError) return;
+    var v = (emailEl.value || '').trim();
+    var invalid = v !== '' && !isValidEmail(v);
+    emailError.classList.toggle('hidden', !invalid);
+    emailEl.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+  }
+  if (emailEl) {
+    emailEl.addEventListener('blur', syncEmailError);
+    emailEl.addEventListener('input', function () {
+      if (emailError && !emailError.classList.contains('hidden')) syncEmailError();
+    });
   }
 
   // Ordering window banner + live countdown (Continue stays locked outside the window).
@@ -726,49 +775,64 @@ layout_head('Order');
     return out + esc(s.slice(last));
   }
 
-  function lunchChoiceLabel(code) {
-    //if (code === 'none') return '留位但不點餐';
-    return code + ' — ' + (BOX_NAMES[code] || code);
-  }
-
   function buildSummary() {
     var f = function (n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ''; };
     var campus = campusChosen() ? campusChosen().value : '';
-    var lg = f('lift_group'), phone = f('phone');
+    var lg = f('lift_group'), phone = f('phone'), email = f('email');
 
     document.getElementById('sum-name').textContent = (f('first_name') + ' ' + f('last_name')).trim();
-    document.getElementById('sum-email').textContent = f('email') || t('modal.email_none');
     document.getElementById('sum-campus').textContent = campus;
     document.getElementById('sum-lg').textContent = lg;
-    document.getElementById('sum-lg-row').style.display = '';
-    document.getElementById('sum-phone').textContent = phone;
-    document.getElementById('sum-phone-row').style.display = phone ? '' : 'none';
-    var people = collectAttendees();
-    var countLabel = String(people.length);
-    document.getElementById('sum-att-count').textContent = countLabel;
-    var attendeeLines = people.map(function (a) {
-      return (a.first + ' ' + a.last).trim() + ' — ' + lunchChoiceLabel(a.box);
-    });
-    document.getElementById('sum-attendee-names').textContent = attendeeLines.join('; ');
-    document.getElementById('sum-attendee-names-row').classList.toggle('hidden', !attendeeLines.length);
 
-    var agg = aggregateBoxCounts();
-    var rows = '', total = 0;
-    Object.keys(agg).sort().forEach(function (code) {
-      var qty = agg[code];
-      var sub = (PRICES[code] || 0) * qty;
+    var phoneBlock = document.getElementById('sum-phone-block');
+    document.getElementById('sum-phone').textContent = phone;
+    phoneBlock.classList.toggle('hidden', !phone);
+
+    var emailRow = document.getElementById('sum-email-row');
+    document.getElementById('sum-email').textContent = email;
+    emailRow.classList.toggle('hidden', !email);
+
+    var people = collectAttendees();
+    var rows = '';
+    var total = 0;
+    people.forEach(function (a) {
+      var name = (a.first + ' ' + a.last).trim();
+      if (!name) return;
+      var code = String(a.box || '').trim();
+      var boxHtml;
+      var sub = 0;
+      if (!code || code === 'none') {
+        boxHtml = esc('留位但不點餐');
+      } else {
+        sub = PRICES[code] || 0;
+        boxHtml = '<span class="font-semibold text-indigo-700">' + esc(code) + '</span> '
+          + dishNameHtml(BOX_NAMES[code] || code);
+        var enAbbrev = BOX_EN_ABBREV[code] || '';
+        if (enAbbrev) {
+          boxHtml += ' <span class="text-[0.85em] font-normal text-gray-500">' + esc(enAbbrev) + '</span>';
+        }
+      }
       total += sub;
-      rows += '<tr>'
-        + '<td class="py-1 pr-3"><span class="font-semibold text-indigo-700">' + esc(code) + '</span> ' + dishNameHtml(BOX_NAMES[code] || '') + '</td>'
-        + '<td class="py-1 px-2 text-center whitespace-nowrap">' + qty + ' &times; $' + ((PRICES[code] || 0) / 100).toFixed(2) + '</td>'
-        + '<td class="py-1 pl-3 text-right font-medium">$' + (sub / 100).toFixed(2) + '</td>'
+      rows += '<tr class="border-b border-gray-100">'
+        + '<td class="py-2 pr-3 align-top">' + esc(name) + '</td>'
+        + '<td class="py-2 pr-3 align-top">' + boxHtml + '</td>'
+        + '<td class="py-2 text-right align-top whitespace-nowrap">$' + (sub / 100).toFixed(2) + '</td>'
         + '</tr>';
     });
-    if (!rows) {
-      rows = '<tr><td class="py-1 text-gray-500" colspan="3">' + esc(t('modal.attendance_only')) + '</td></tr>';
+
+    var tableWrap = document.getElementById('sum-table-wrap');
+    var attendanceOnly = document.getElementById('sum-attendance-only');
+    if (rows) {
+      document.getElementById('sum-rows').innerHTML = rows;
+      document.getElementById('sum-total').textContent = '$' + (total / 100).toFixed(2);
+      tableWrap.classList.remove('hidden');
+      attendanceOnly.classList.add('hidden');
+    } else {
+      document.getElementById('sum-rows').innerHTML = '';
+      document.getElementById('sum-total').textContent = '$0.00';
+      tableWrap.classList.add('hidden');
+      attendanceOnly.classList.remove('hidden');
     }
-    document.getElementById('sum-rows').innerHTML = rows;
-    document.getElementById('sum-total').textContent = '$' + (total / 100).toFixed(2);
 
     var confirmGo = document.getElementById('confirm-go');
     var confirmNote = document.getElementById('confirm-pay-note');
@@ -1232,7 +1296,7 @@ layout_head('Order');
     if (!fieldVal('first_name') || !fieldVal('last_name')) return false;
     var email = fieldVal('email');
     var phone = fieldVal('phone');
-    var emailOk = !!(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+    var emailOk = !!(email && isValidEmail(email));
     var phoneOk = (phone.replace(/\D/g, '').length >= 10);
     if (email && !emailOk) return false;
     return emailOk || phoneOk;

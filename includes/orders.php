@@ -230,6 +230,31 @@ function mark_order_cancelled(PDO $pdo, int $id): bool
     return $stmt->rowCount() > 0;
 }
 
+/**
+ * Unguessable cancel capability for Stripe cancel_url / pay-page cancel links.
+ * Bound to the order id via HMAC so /cancel cannot mutate arbitrary pending orders.
+ */
+function order_cancel_token(int $orderId): string
+{
+    if ($orderId <= 0 || STRIPE_SECRET_KEY === '') {
+        return '';
+    }
+    return hash_hmac('sha256', 'order-cancel:' . $orderId, STRIPE_SECRET_KEY);
+}
+
+function order_cancel_token_is_valid(int $orderId, string $token): bool
+{
+    $expected = order_cancel_token($orderId);
+    return $expected !== '' && $token !== '' && hash_equals($expected, $token);
+}
+
+/** Absolute cancel URL with order id + cancel token query params. */
+function order_cancel_url(int $orderId): string
+{
+    $token = order_cancel_token($orderId);
+    return APP_URL . '/cancel?order=' . $orderId . '&token=' . rawurlencode($token);
+}
+
 /** Pending orders whose hold has lapsed — candidates for reconcile/expire. */
 function find_stale_pending_orders(PDO $pdo): array
 {
