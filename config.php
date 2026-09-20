@@ -43,7 +43,7 @@ function env_bool(string $key, bool $default = false): bool
 define('APP_ENV', env('APP_ENV', 'development'));
 define('APP_URL', rtrim(env('APP_URL', 'http://localhost'), '/'));
 // Public site / browser title. Admin “event title” overrides this when set.
-define('APP_TITLE', (string) env('APP_TITLE', 'Deacons Ordination Lunch Ordering Form'));
+define('APP_TITLE', (string) env('APP_TITLE', '執事按立禮感恩午宴'));
 
 define('DB_HOST', env('DB_HOST', '127.0.0.1'));
 define('DB_PORT', env('DB_PORT', '3306'));

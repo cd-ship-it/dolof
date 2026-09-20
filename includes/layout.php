@@ -13,12 +13,17 @@ require_once __DIR__ . '/helpers.php';
  */
 function layout_head(?string $pageLabel = null): void
 {
-    $app = function_exists('app_title') ? app_title() : (defined('APP_TITLE') ? APP_TITLE : 'Deacons Ordination Lunch Ordering Form');
+    $app = function_exists('app_title') ? app_title() : (defined('APP_TITLE') ? APP_TITLE : '執事按立禮感恩午宴');
+    // Order form i18n: prefer catalog title so 中文|English switch updates the header.
+    if (function_exists('t') && function_exists('i18n_catalog') && isset(i18n_catalog()['app.title'])) {
+        $app = t('app.title');
+    }
     $title = ($pageLabel !== null && $pageLabel !== '') ? ($pageLabel . ' — ' . $app) : $app;
     $base = defined('APP_URL') ? APP_URL : '';
+    $htmlLang = (function_exists('i18n_locale') && i18n_locale() === 'en') ? 'en' : 'zh-Hant';
     ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= e($htmlLang) ?>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

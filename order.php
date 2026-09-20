@@ -10,8 +10,10 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/boxes.php';
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/layout.php';
+require_once __DIR__ . '/includes/i18n.php';
 
 auth_start_session();
+$lang = i18n_locale(); // ?lang=en|zh (default zh); remembered in session
 
 $form_errors = $form_errors ?? [];
 $old         = $old ?? [];
@@ -44,9 +46,17 @@ layout_head('Order');
 <!-- <h1 class="text-2xl font-bold text-indigo-900 mb-1">Luncheon Box Order</h1> -->
 <!-- <p class="text-gray-600 mb-6">Select your lunch boxes and pay online to confirm your order.</p> -->
 
+<div class="mb-4 flex flex-wrap items-center justify-end gap-2 text-sm">
+  <a href="<?= e(order_lang_url('zh', $cancelled)) ?>"
+     class="<?= $lang === 'zh' ? 'font-bold text-indigo-800' : 'text-gray-600 hover:text-indigo-700' ?>"><?= e(t('lang.zh')) ?></a>
+  <span class="text-gray-400" aria-hidden="true">|</span>
+  <a href="<?= e(order_lang_url('en', $cancelled)) ?>"
+     class="<?= $lang === 'en' ? 'font-bold text-indigo-800' : 'text-gray-600 hover:text-indigo-700' ?>"><?= e(t('lang.en')) ?></a>
+</div>
+
 <?php if ($cancelled): ?>
   <div class="card mb-6 border-amber-300 bg-amber-50 text-amber-800">
-    Payment was not completed, so your order was not placed. Your selections are held for a short time — you can try again below.
+    <?= e(t('cancelled.flash')) ?>
   </div>
 <?php endif; ?>
 
@@ -54,32 +64,31 @@ layout_head('Order');
   // Banner + countdown for the .env ordering window (form is always browsable).
   $nowTs = time();
   $bannerClass = 'border-amber-300 bg-amber-50 text-amber-900';
-  $bannerTitle = 'Ordering is not open yet';
+  $bannerTitle = t('banner.not_open_yet');
   $bannerBody  = $orderStart
-      ? 'You can explore the form now. Checkout opens ' . ordering_format_pt($orderStart) . '.'
-      : 'You can explore the form now. Checkout is not available yet.';
+      ? t('banner.explore_opens', ['date' => ordering_format_pt($orderStart)])
+      : t('banner.explore_not_yet');
   // Deadline countdown only after opening time. Before that, show the deadline time only.
   $showDeadlineCountdown = $orderEnd && $orderStart && $nowTs >= $orderStart->getTimestamp() && $nowTs <= $orderEnd->getTimestamp();
   $countdownTarget = $showDeadlineCountdown ? $orderEnd : null;
-  $countdownLabel  = '倒數';
+  $countdownLabel  = t('banner.countdown_prefix');
   if ($windowOpen) {
       $bannerClass = 'border-emerald-300 bg-emerald-50 text-emerald-900';
-      $bannerTitle = 'Ordering is open';
+      $bannerTitle = t('banner.open');
       $bannerBody  = $orderEnd
-          ? 'Place your order anytime until ' . ordering_format_pt($orderEnd) . '.'
-          : 'You can place your order now.';
+          ? t('banner.open_until', ['date' => ordering_format_pt($orderEnd)])
+          : t('banner.open_now');
   } elseif ($orderEnd && $nowTs > $orderEnd->getTimestamp()) {
       $bannerClass = 'border-red-300 bg-red-50 text-red-900';
-      $bannerTitle = 'Ordering has closed';
-      $bannerBody  = 'You can still look around, but checkout is no longer available. Window ended '
-          . ordering_format_pt($orderEnd) . '.';
+      $bannerTitle = t('banner.closed');
+      $bannerBody  = t('banner.closed_body', ['date' => ordering_format_pt($orderEnd)]);
       $countdownTarget = null;
       $countdownLabel  = '';
   }
   if (!$adminOpen) {
       $bannerClass = 'border-red-300 bg-red-50 text-red-900';
-      $bannerTitle = 'Ordering is temporarily closed';
-      $bannerBody  = 'You can explore the form, but checkout is paused by the church office.';
+      $bannerTitle = t('banner.admin_closed');
+      $bannerBody  = t('banner.admin_closed_body');
       $countdownTarget = null;
       $countdownLabel  = '';
   }
@@ -110,7 +119,7 @@ layout_head('Order');
 
 <?php if ($orderStart): ?>
 <div id="ordering-opens-banner" class="card mb-6 border-emerald-300 bg-emerald-50 text-emerald-900<?= $beforeStart ? '' : ' hidden' ?>">
-  <p class="font-semibold text-base">Accepting order on <?= e(ordering_format_pt($orderStart)) ?></p>
+  <p class="font-semibold text-base"><?= e(t('banner.accepting_on', ['date' => ordering_format_pt($orderStart)])) ?></p>
 </div>
 <?php endif; ?>
 <div id="ordering-window-banner" class="card mb-6 <?= e($bannerClass) ?><?= $beforeStart ? ' hidden' : '' ?>"
@@ -118,13 +127,14 @@ layout_head('Order');
      data-end-ms="<?= $orderEnd ? e((string) ($orderEnd->getTimestamp() * 1000)) : '' ?>"
      data-admin-open="<?= $adminOpen ? '1' : '0' ?>">
   <p class="font-semibold text-base" id="ordering-banner-title"><?= e($bannerTitle) ?></p>
+  <p class="hidden text-sm mt-1" id="ordering-banner-body"><?= e($bannerBody) ?></p>
 </div>
 
 <?php if ($orderEnd): ?>
     <div class="mt-3 flex items-start gap-3 rounded-lg border-2 border-red-700 bg-red-600 px-3 py-3 text-white">
       <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-lg font-bold leading-none text-red-600" aria-hidden="true">!</span>
       <div>
-        <p class="text-sm font-semibold">截止日期: <?= e(ordering_format_pt($orderEnd)) ?></p>
+        <p class="text-sm font-semibold"><?= e(t('banner.deadline', ['date' => ordering_format_pt($orderEnd)])) ?></p>
         <p class="mt-1 text-sm font-medium tabular-nums<?= $countdownText === '' ? ' hidden' : '' ?>"
            id="ordering-countdown"><?= e($countdownText) ?></p>
       </div>
@@ -135,7 +145,7 @@ layout_head('Order');
 
 <?php if ($form_errors): ?>
   <div class="card mb-6 border-red-300 bg-red-50">
-    <p class="font-semibold text-red-700 mb-1">Please fix the following:</p>
+    <p class="font-semibold text-red-700 mb-1"><?= e(t('errors.fix_title')) ?></p>
     <ul class="list-disc list-inside text-sm text-red-700">
       <?php foreach ($form_errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
     </ul>
@@ -148,45 +158,45 @@ layout_head('Order');
   <div class="flex flex-wrap gap-3">
     <button type="button" id="font-smaller"
             class="rounded-md border-2 border-gray-300 bg-white px-4 py-2 text-sm font-large text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-        縮小字體
+        <?= e(t('font.smaller')) ?>
     </button>
     <button type="button" id="font-bigger"
             class="rounded-md border-2 border-gray-300 bg-white px-4 py-2 text-sm font-large text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-      放大字體
+      <?= e(t('font.bigger')) ?>
     </button>
   </div>
 
   <div class="card space-y-4 transition-opacity duration-200<?= $formBrowseOk ? '' : ' form-step-locked' ?>" data-form-step="details"<?= $formBrowseOk ? '' : ' aria-disabled="true"' ?>>
-    <h2 class="text-2xl font-semibold text-gray-900">個人/小組組長/家長 資料</h2>
+    <h2 class="text-2xl font-semibold text-gray-900"><?= e(t('details.heading')) ?></h2>
     <div class="grid sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xl font-medium text-gray-700">名 First name <span class="text-red-600">*</span></span>
+        <span class="text-xl font-medium text-gray-700"><?= e(t('details.first_name')) ?> <span class="text-red-600">*</span></span>
         <input type="text" name="first_name" required maxlength="100" value="<?= e($old['first_name'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
       <label class="block">
-        <span class="text-xl font-medium text-gray-700">姓 Last name <span class="text-red-600">*</span></span>
+        <span class="text-xl font-medium text-gray-700"><?= e(t('details.last_name')) ?> <span class="text-red-600">*</span></span>
         <input type="text" name="last_name" required maxlength="100" value="<?= e($old['last_name'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
     </div>
     <hr class="border-gray-200">
-    <p class="text-xl font-medium text-gray-700"><span class="text-red-600">*</span> 請輸入電郵或電話號碼. </p>
+    <p class="text-xl font-medium text-gray-700"><span class="text-red-600">*</span> <?= e(t('details.contact_required')) ?> </p>
     <!--<p class="text-sm  font-medium text-gray-700"><span class="text-red-600">*</span> Email or phone is required (at least one). Email is recommanded so you can receive an electronic receipt.</p>-->
     <div class="flex flex-col sm:flex-row sm:items-end gap-4">
       <label class="block flex-1">
-        <span class="text-xl font-medium text-gray-700">Email</span>
+        <span class="text-xl font-medium text-gray-700"><?= e(t('details.email')) ?></span>
         <input type="email" name="email" maxlength="200" value="<?= e($old['email'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
-      <span class="text-center text-xl font-semibold text-gray-500 sm:pb-2.5" aria-hidden="true">或</span>
+      <span class="text-center text-xl font-semibold text-gray-500 sm:pb-2.5" aria-hidden="true"><?= e(t('details.or')) ?></span>
       <label class="block flex-1">
-        <span class="text-xl font-medium text-gray-700">Phone (建議使用電郵以便收到電子收據。)</span>
+        <span class="text-xl font-medium text-gray-700"><?= e(t('details.phone')) ?></span>
         <input type="tel" name="phone" maxlength="50" value="<?= e($old['phone'] ?? '') ?>"
                class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
       </label>
     </div>
-    <p id="contact-error" class="hidden text-sm font-medium text-red-600">Please enter a valid email or a phone number.</p>
+    <p id="contact-error" class="hidden text-sm font-medium text-red-600"><?= e(t('details.contact_error')) ?></p>
   </div>
   <?php
     $attendeesOld = [];
@@ -221,30 +231,30 @@ layout_head('Order');
     $attendeesOld = array_slice($attendeesOld, 0, 50);
   ?>
   <div class="card space-y-4 transition-opacity duration-200<?= $stepUnlocked() ? '' : ' form-step-locked' ?>" data-form-step="campus"<?= $stepUnlocked() ? '' : ' aria-disabled="true"' ?>>
-    <h2 class="text-2xl font-semibold text-gray-900">會堂 <span class="text-red-600">*</span></h2>
+    <h2 class="text-2xl font-semibold text-gray-900"><?= e(t('campus.heading')) ?> <span class="text-red-600">*</span></h2>
 
     <?php if (!$campusesConfigured): ?>
       <div class="rounded-lg border border-red-300 bg-red-50 px-3 py-3 text-sm text-red-700">
-        <p class="font-semibold">Campus options are not configured.</p>
-        <p class="mt-1">Please contact the church office — online ordering cannot continue until campuses are defined.</p>
+        <p class="font-semibold"><?= e(t('campus.not_configured_title')) ?></p>
+        <p class="mt-1"><?= e(t('campus.not_configured_body')) ?></p>
       </div>
     <?php else: ?>
     <div class="grid grid-cols-2 gap-3">
       <?php foreach ($campuses as $c): $wide = strlen($c) > 16; ?>
         <label class="campus-option relative flex cursor-pointer items-center justify-center rounded-lg border-2 px-2 py-2 text-center font-medium text-sm transition <?= $wide ? 'col-span-2' : '' ?>
                       <?= $oldCampus === $c ? 'border-indigo-600 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-300' : 'border-amber-200 bg-amber-50/60 text-gray-600 hover:border-amber-300' ?>">
-          <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?>>
+          <input type="radio" name="campus" value="<?= e($c) ?>" class="sr-only campus-radio" <?= $oldCampus === $c ? 'checked' : '' ?> >
           <?= e($c) ?>
         </label>
       <?php endforeach; ?>
     </div>
-    <p id="campus-error" class="hidden text-sm font-medium text-red-600">Please choose a campus to continue.</p>
+    <p id="campus-error" class="hidden text-sm font-medium text-red-600"><?= e(t('campus.error')) ?></p>
     <?php endif; ?>
 
     <div class="block space-y-2">
-      <label for="lift-group-input" class="text-2xl font-semibold text-gray-900">Lift Group Name <span class="text-red-600">*</span></label>
+      <label for="lift-group-input" class="text-2xl font-semibold text-gray-900"><?= e(t('lift.heading')) ?> <span class="text-red-600">*</span></label>
       <?php
-        $noLgLabel = "I don't join a Life Group";
+        $noLgLabel = t('lift.no_life_group');
         $noLgValue = 'No Life Group';
         $noLgSelected = ($old['lift_group'] ?? '') === $noLgValue;
       ?>
@@ -270,15 +280,23 @@ layout_head('Order');
     </div>
   </div>
   <div class="card space-y-4 transition-opacity duration-200<?= $stepUnlocked() ? '' : ' form-step-locked' ?>" data-form-step="attendance"<?= $stepUnlocked() ? '' : ' aria-disabled="true"' ?>>
-    <h2 class="text-2xl font-semibold text-gray-900">請點餐<span class="text-red-600">*</span></h2>
-    <p class="text-md ">每份$15連稅。<br><!-- 可以只填名字留位但不點餐，不另收費。 -->
+    <h2 class="text-2xl font-semibold text-gray-900"><?= e(t('attendance.heading')) ?><span class="text-red-600">*</span></h2>
+    <p class="text-md "><?= e(t('attendance.price_note')) ?><br><?= e(t('attendance.refund_note')) ?>
     </p>
     <div id="attendees" class="space-y-4"
          data-initial-attendees="<?= e(json_encode($attendeesOld, JSON_UNESCAPED_UNICODE)) ?>"></div>
+    <div id="attendee-placed-msg"
+         class="hidden flex items-center gap-3 rounded-lg border-2 border-orange-400 bg-orange-100 px-4 py-3 text-base font-semibold text-orange-950"
+         role="status">
+      <svg class="h-7 w-7 shrink-0 text-green-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+      </svg>
+      <span id="attendee-placed-text"><?= e(t('attendance.placed')) ?></span>
+    </div>
     <button type="button" id="add-attendee" class="btn-secondary w-full sm:w-auto hidden">
-      再加一位成人或孩童
+      <?= e(t('attendance.add')) ?>
     </button>
-    <p id="attendance-adult-error" class="hidden text-sm font-medium text-red-600">At least one person who is not 12 or under is required.</p>
+    <p id="attendance-adult-error" class="hidden text-sm font-medium text-red-600"><?= e(t('attendance.adult_error')) ?></p>
     <input type="hidden" name="attending_adults" value="0" data-attend="attending_adults">
     <input type="hidden" name="attending_children" value="0" data-attend="attending_children">
     <!-- <div class="col-span-full flex flex-col items-center text-center gap-1 py-1">
@@ -289,32 +307,32 @@ layout_head('Order');
   </div>
   <?php if ($orderStart): ?>
 <div id="ordering-opens-banner" class="card mb-6 border-emerald-300 bg-emerald-50 text-emerald-900<?= $beforeStart ? '' : ' hidden' ?>">
-  <p class="font-semibold text-base">Accepting order on <?= e(ordering_format_pt($orderStart)) ?></p>
+  <p class="font-semibold text-base"><?= e(t('banner.accepting_on', ['date' => ordering_format_pt($orderStart)])) ?></p>
 </div>
 <?php endif; ?>
   <div class="card flex items-center justify-between transition-opacity duration-200<?= $stepUnlocked() ? '' : ' form-step-locked' ?>" data-form-step="checkout"<?= $stepUnlocked() ? '' : ' aria-disabled="true"' ?>>
     <div>
-      <span class="text-sm text-gray-500">Order total</span>
+      <span class="text-sm text-gray-500"><?= e(t('checkout.total_label')) ?></span>
       <div class="text-2xl font-bold text-indigo-900" id="order-total">$0.00</div>
     </div>
     <button type="submit" class="btn-primary" id="pay-btn" disabled
             data-checkout-ok="<?= $checkoutOk ? '1' : '0' ?>"
-            title="<?= !$campusesConfigured ? 'Campus options are not configured' : ($checkoutOk ? '' : 'Checkout is only available during the ordering window') ?>">Continue</button>
+            title="<?= e(!$campusesConfigured ? t('checkout.title_no_campus') : ($checkoutOk ? '' : t('checkout.title_window'))) ?>"><?= e(t('checkout.continue')) ?></button>
   </div>
   <!-- <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p> -->
 </form>
 
 <div id="confirm-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3">
   <div class="my-4 w-full max-w-md rounded-xl bg-white p-4 shadow-xl space-y-3 text-sm">
-    <h2 class="text-base font-bold text-indigo-900">Please review your order</h2>
+    <h2 class="text-base font-bold text-indigo-900"><?= e(t('modal.title')) ?></h2>
 
     <div class="text-gray-800 space-y-0.5 text-xs">
-      <div><span class="text-gray-500">Name:</span> <span id="sum-name"></span></div>
-      <div><span class="text-gray-500">Email:</span> <span id="sum-email"></span></div>
-      <div><span class="text-gray-500">Campus:</span> <span id="sum-campus"></span></div>
-      <div id="sum-lg-row"><span class="text-gray-500">Lift Group:</span> <span id="sum-lg"></span></div>
-      <div id="sum-phone-row"><span class="text-gray-500">Phone:</span> <span id="sum-phone"></span></div>
-      <div><span class="text-gray-500">Attendance:</span> <span id="sum-att-count"></span></div>
+      <div><span class="text-gray-500"><?= e(t('modal.name')) ?></span> <span id="sum-name"></span></div>
+      <div><span class="text-gray-500"><?= e(t('modal.email')) ?></span> <span id="sum-email"></span></div>
+      <div><span class="text-gray-500"><?= e(t('modal.campus')) ?></span> <span id="sum-campus"></span></div>
+      <div id="sum-lg-row"><span class="text-gray-500"><?= e(t('modal.lift_group')) ?></span> <span id="sum-lg"></span></div>
+      <div id="sum-phone-row"><span class="text-gray-500"><?= e(t('modal.phone')) ?></span> <span id="sum-phone"></span></div>
+      <div><span class="text-gray-500"><?= e(t('modal.attendance')) ?></span> <span id="sum-att-count"></span></div>
       <div id="sum-attendee-names-row" class="hidden pl-3 text-gray-600"><span id="sum-attendee-names"></span></div>
     </div>
 
@@ -322,20 +340,20 @@ layout_head('Order');
       <tbody id="sum-rows"></tbody>
       <tfoot>
         <tr class="border-t border-gray-200">
-          <td class="pt-2 font-bold text-sm">Total to pay</td>
+          <td class="pt-2 font-bold text-sm"><?= e(t('modal.total')) ?></td>
           <td></td>
           <td class="pt-2 text-right text-base font-bold text-indigo-900" id="sum-total">$0.00</td>
         </tr>
       </tfoot>
     </table>
 
-    <button type="button" id="confirm-go" class="btn-primary w-full text-center">Confirm &amp; Pay with card</button>
+    <button type="button" id="confirm-go" class="btn-primary w-full text-center"><?= e(t('modal.confirm_pay')) ?></button>
 
-    <p id="confirm-pay-note" class="text-xs text-gray-500">Next you'll continue to our payment page to pay this amount by card. Your order is confirmed only after payment succeeds.</p>
+    <p id="confirm-pay-note" class="text-xs text-gray-500"><?= e(t('modal.pay_note_elements')) ?></p>
 
     <button type="button" id="confirm-back"
             class="w-full rounded-md border-2 border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-      ← Back to edit
+      <?= e(t('modal.back')) ?>
     </button>
   </div>
 </div>
@@ -343,10 +361,17 @@ layout_head('Order');
 <script>
 (function () {
   var PRICES = <?= json_encode(array_column($boxes, 'price_cents', 'code')) ?>;
-  var BOX_NAMES = <?= json_encode(array_column($boxes, 'name', 'code'), JSON_UNESCAPED_SLASHES) ?>;
+  var BOX_NAMES = <?= json_encode(array_column(
+      array_map(static fn($b) => [
+          'code' => $b['code'],
+          'name' => box_localized_name($b['code'], (string) $b['name']),
+      ], $boxes),
+      'name',
+      'code'
+  ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   var BOXES = <?= json_encode(array_values(array_map(fn($b) => [
       'code' => $b['code'],
-      'name' => $b['name'],
+      'name' => box_localized_name($b['code'], (string) $b['name']),
       'sold_out' => (bool) $b['sold_out'],
   ], $boxes)), JSON_UNESCAPED_UNICODE) ?>;
   var LOW_STOCK = <?= (int) DOLOS_LOW_STOCK_THRESHOLD ?>;
@@ -357,6 +382,16 @@ layout_head('Order');
   var formBrowseOk = <?= $formBrowseOk ? 'true' : 'false' ?>;
   var progressiveSteps = <?= $progressiveSteps ? 'true' : 'false' ?>;
   var showNotOrdering = <?= SHOW_NOT_ORDERING ? 'true' : 'false' ?>;
+  var I18N = <?= json_encode(i18n_js_bundle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  function t(k, vars) {
+    var s = (I18N && I18N[k]) || k;
+    if (vars) {
+      Object.keys(vars).forEach(function (key) {
+        s = s.split('{' + key + '}').join(String(vars[key]));
+      });
+    }
+    return s;
+  }
   var form = document.getElementById('order-form');
   var totalEl = document.getElementById('order-total');
   var payBtn = document.getElementById('pay-btn');
@@ -460,7 +495,7 @@ layout_head('Order');
       cdEl.classList.add('hidden');
     }
     function showDeadlineCountdown(remainMs) {
-      cdEl.textContent = 'Deadline in ' + fmtRemain(remainMs);
+      cdEl.textContent = t('banner.deadline_in', { remain: fmtRemain(remainMs) });
       cdEl.classList.remove('hidden');
     }
     function tick() {
@@ -479,21 +514,21 @@ layout_head('Order');
         hideDeadlineCountdown();
       } else if (!adminOpen) {
         setBannerClasses('closed');
-        titleEl.textContent = 'Ordering is temporarily closed';
-        if (bodyEl) bodyEl.textContent = 'You can explore the form, but checkout is paused by the church office.';
+        titleEl.textContent = t('banner.admin_closed');
+        if (bodyEl) bodyEl.textContent = t('banner.admin_closed_body');
         hideDeadlineCountdown();
       } else if (isFinite(endMs) && now > endMs) {
         setBannerClasses('closed');
-        titleEl.textContent = 'Ordering has closed';
-        if (bodyEl) bodyEl.textContent = 'You can still look around, but checkout is no longer available. Window ended ' + fmtPt(endMs) + '.';
+        titleEl.textContent = t('banner.closed');
+        if (bodyEl) bodyEl.textContent = t('banner.closed_body', { date: fmtPt(endMs) });
         hideDeadlineCountdown();
       } else {
         setBannerClasses('open');
-        titleEl.textContent = 'Ordering is open';
+        titleEl.textContent = t('banner.open');
         if (bodyEl) {
           bodyEl.textContent = isFinite(endMs)
-            ? 'Place your order anytime until ' + fmtPt(endMs) + '.'
-            : 'You can place your order now.';
+            ? t('banner.open_until', { date: fmtPt(endMs) })
+            : t('banner.open_now');
         }
         if (isFinite(endMs)) {
           showDeadlineCountdown(endMs - now);
@@ -673,8 +708,10 @@ layout_head('Order');
   var modal = document.getElementById('confirm-modal');
   function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
   // Dish name with English (Latin) runs a little smaller + lighter (mirrors dish_name_html in PHP).
+  // Pure ASCII names (English locale) stay normal size.
   function dishNameHtml(name) {
     var s = String(name == null ? '' : name), out = '', re = /[\x20-\x7E]+/g, last = 0, m;
+    if (!/[^\x00-\x7F]/.test(s)) return esc(s);
     while ((m = re.exec(s))) {
       out += esc(s.slice(last, m.index));
       var seg = m[0];
@@ -700,22 +737,17 @@ layout_head('Order');
     var lg = f('lift_group'), phone = f('phone');
 
     document.getElementById('sum-name').textContent = (f('first_name') + ' ' + f('last_name')).trim();
-    document.getElementById('sum-email').textContent = f('email') || '(none — confirmation to church office)';
+    document.getElementById('sum-email').textContent = f('email') || t('modal.email_none');
     document.getElementById('sum-campus').textContent = campus;
     document.getElementById('sum-lg').textContent = lg;
     document.getElementById('sum-lg-row').style.display = '';
     document.getElementById('sum-phone').textContent = phone;
     document.getElementById('sum-phone-row').style.display = phone ? '' : 'none';
     var people = collectAttendees();
-    var childCount = 0;
-    people.forEach(function (a) { if (a.child) childCount++; });
     var countLabel = String(people.length);
-    if (childCount) countLabel += ' (' + childCount + ' under or 12 years old)';
     document.getElementById('sum-att-count').textContent = countLabel;
     var attendeeLines = people.map(function (a) {
-      var line = (a.first + ' ' + a.last).trim() + ' — ' + lunchChoiceLabel(a.box);
-      if (a.child) line += ' (under or 12 years old)';
-      return line;
+      return (a.first + ' ' + a.last).trim() + ' — ' + lunchChoiceLabel(a.box);
     });
     document.getElementById('sum-attendee-names').textContent = attendeeLines.join('; ');
     document.getElementById('sum-attendee-names-row').classList.toggle('hidden', !attendeeLines.length);
@@ -733,7 +765,7 @@ layout_head('Order');
         + '</tr>';
     });
     if (!rows) {
-      rows = '<tr><td class="py-1 text-gray-500" colspan="3">No lunch boxes — attendance only</td></tr>';
+      rows = '<tr><td class="py-1 text-gray-500" colspan="3">' + esc(t('modal.attendance_only')) + '</td></tr>';
     }
     document.getElementById('sum-rows').innerHTML = rows;
     document.getElementById('sum-total').textContent = '$' + (total / 100).toFixed(2);
@@ -741,14 +773,14 @@ layout_head('Order');
     var confirmGo = document.getElementById('confirm-go');
     var confirmNote = document.getElementById('confirm-pay-note');
     if (total === 0) {
-      confirmGo.textContent = 'Confirm RSVP';
-      if (confirmNote) confirmNote.textContent = 'Your attendance will be recorded. No payment is required.';
+      confirmGo.textContent = t('modal.confirm_rsvp');
+      if (confirmNote) confirmNote.textContent = t('modal.rsvp_note');
     } else {
-      confirmGo.textContent = 'Confirm & Pay with card';
+      confirmGo.textContent = t('modal.confirm_pay');
       if (confirmNote) {
         confirmNote.textContent = checkoutModeElements
-          ? 'Next you\'ll continue to our payment page to pay this amount by card. Your order is confirmed only after payment succeeds.'
-          : 'Next you\'ll be taken to Stripe to pay this amount by card. Your order is confirmed only after payment succeeds.';
+          ? t('modal.pay_note_elements')
+          : t('modal.pay_note_hosted');
       }
     }
   }
@@ -814,7 +846,18 @@ layout_head('Order');
   var MAX_ATTENDEES = 50;
   var attendeeList = document.getElementById('attendees');
   var addAttendeeBtn = document.getElementById('add-attendee');
+  var attendeePlacedMsg = document.getElementById('attendee-placed-msg');
 
+  function showAttendeePlacedMsg(updated) {
+    if (!attendeePlacedMsg) return;
+    var textEl = document.getElementById('attendee-placed-text');
+    if (textEl) textEl.textContent = updated ? t('attendance.updated') : t('attendance.placed');
+    attendeePlacedMsg.classList.remove('hidden');
+  }
+  function hideAttendeePlacedMsg() {
+    if (!attendeePlacedMsg) return;
+    attendeePlacedMsg.classList.add('hidden');
+  }
   function setAttendCount(name, n) {
     var el = form.querySelector('input[data-attend="' + name + '"]');
     if (el) el.value = String(n);
@@ -825,7 +868,6 @@ layout_head('Order');
     attendeeList.querySelectorAll('[data-attendee-row]').forEach(function (row) {
       var first = row.querySelector('input[data-attendee-first]');
       var last = row.querySelector('input[data-attendee-last]');
-      var child = row.querySelector('input[data-attendee-child]');
       var boxEl = row.querySelector('input[data-attendee-box]:checked');
       var editor = row.querySelector('[data-attendee-editor]');
       var complete = !!(first && first.value.trim() && last && last.value.trim() && boxEl && boxEl.value);
@@ -834,7 +876,7 @@ layout_head('Order');
         first: first ? first.value.trim() : '',
         last: last ? last.value.trim() : '',
         box: boxEl ? boxEl.value : '',
-        child: !!(child && child.checked),
+        child: false,
         oked: oked
       });
     });
@@ -843,15 +885,10 @@ layout_head('Order');
   function attendanceComplete() {
     var rows = collectAttendees();
     if (rows.length < 1) return false;
-    var adults = 0;
-    var okedCount = 0;
     for (var i = 0; i < rows.length; i++) {
-      // Every row must be OK'd (collapsed to summary).
       if (!rows[i].oked) return false;
-      if (!rows[i].child) adults++;
-      okedCount++;
     }
-    return okedCount >= 1 && adults >= 1;
+    return true;
   }
   function aggregateBoxCounts() {
     var agg = {};
@@ -891,8 +928,8 @@ layout_head('Order');
     syncLunchHighlights(row);
   }
   function lunchRemText(code, soldOut, rem) {
-    if (soldOut) return 'Sold out';
-    if (rem !== null && rem !== undefined && rem <= LOW_STOCK) return rem + ' left';
+    if (soldOut) return t('js.sold_out');
+    if (rem !== null && rem !== undefined && rem <= LOW_STOCK) return t('js.left', { n: rem });
     return '';
   }
   function notOrderingLabel(groupName, selectedBox) {
@@ -904,7 +941,7 @@ layout_head('Order');
       + '<svg class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">'
       + '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>'
       + '</svg>'
-      + '<span class="text-md leading-tight mt-0.5">留位但不點餐</span>'
+      + '<span class="text-md leading-tight mt-0.5">' + esc(t('js.not_ordering')) + '</span>'
       + '<span class="text-[10px] mt-0.5 min-h-[1em]"></span>'
       + '</label>';
   }
@@ -938,12 +975,11 @@ layout_head('Order');
   function attendeeRowData(row) {
     var first = row.querySelector('input[data-attendee-first]');
     var last = row.querySelector('input[data-attendee-last]');
-    var child = row.querySelector('input[data-attendee-child]');
     var boxEl = row.querySelector('input[data-attendee-box]:checked');
     return {
       first: first ? first.value.trim() : '',
       last: last ? last.value.trim() : '',
-      child: !!(child && child.checked),
+      child: false,
       box: boxEl ? boxEl.value : ''
     };
   }
@@ -955,10 +991,8 @@ layout_head('Order');
     if (!row || !data) return;
     var first = row.querySelector('input[data-attendee-first]');
     var last = row.querySelector('input[data-attendee-last]');
-    var child = row.querySelector('input[data-attendee-child]');
     if (first) first.value = data.first || '';
     if (last) last.value = data.last || '';
-    if (child) child.checked = !!data.child;
     row.querySelectorAll('input[data-attendee-box]').forEach(function (r) {
       r.checked = r.value === (data.box || '');
     });
@@ -970,7 +1004,7 @@ layout_head('Order');
       ok.disabled = !rowComplete(row);
       var snap = row._editSnapshot;
       var editingSaved = !!(snap && snap.first && snap.last && snap.box);
-      ok.textContent = editingSaved ? '更改' : '加入帳單';
+      ok.textContent = editingSaved ? t('js.save_changes') : t('js.add_to_bill');
     }
     syncAddNextBtn();
   }
@@ -1002,12 +1036,12 @@ layout_head('Order');
     if (collapsed) {
       var d = attendeeRowData(row);
       var n = idx + 1;
-      var lunchName = d.box === 'none' ? 'Not Ordering' : (BOX_NAMES[d.box] || d.box);
+      var lunchName = d.box === 'none' ? t('js.not_ordering_summary') : (BOX_NAMES[d.box] || d.box);
       var lunchCode = (d.box && d.box !== 'none') ? ' (' + esc(d.box) + ')' : '';
       var el = summary.querySelector('[data-attendee-summary-text]');
       if (el) {
         el.innerHTML = '<span class="block font-semibold text-base leading-tight">' + n + '. ' + esc((d.first + ' ' + d.last).trim()) + '</span>'
-          + '<span class="block text-sm text-gray-700 leading-snug">' + dishNameHtml(lunchName) + lunchCode + ' ' + (d.child ? '孩童' : '成人') + '</span>';
+          + '<span class="block text-sm text-gray-700 leading-snug">' + dishNameHtml(lunchName) + lunchCode + '</span>';
       }
       row._editSnapshot = null;
     } else {
@@ -1034,7 +1068,7 @@ layout_head('Order');
         attendeeList._lastRegLast = regLast;
       }
       var removeBtn = rows.length > 1
-        ? '<button type="button" data-remove-attendee aria-label="Remove" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-50 hover:text-red-800">'
+        ? '<button type="button" data-remove-attendee aria-label="' + esc(t('js.remove')) + '" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-50 hover:text-red-800">'
           + '<svg class="h-6 w-6" viewBox="0 0 20 20" fill="none" aria-hidden="true">'
           + '<circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/>'
           + '<path d="M7.2 7.2l5.6 5.6M12.8 7.2l-5.6 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'
@@ -1044,32 +1078,27 @@ layout_head('Order');
         '<div data-attendee-summary class="hidden items-center justify-between gap-2">'
         + '<p class="min-w-0 break-words text-sm text-gray-900" data-attendee-summary-text></p>'
         + '<span class="flex shrink-0 items-center gap-3">'
-        + '<button type="button" data-attendee-edit class="text-sm font-semibold text-indigo-700 hover:text-indigo-900">更改</button>'
+        + '<button type="button" data-attendee-edit class="text-sm font-semibold text-indigo-700 hover:text-indigo-900">' + esc(t('js.edit')) + '</button>'
         + removeBtn
         + '</span></div>'
         + '<div data-attendee-editor class="space-y-2">'
         + '<div class="flex items-center justify-between gap-2">'
-        + '<p class="text-xl font-semibold text-gray-800"> 第' + (i + 1) + '位出席者 '+'</p>'
+        + '<p class="text-xl font-semibold text-gray-800">' + esc(t('js.attendee_n', { n: i + 1 })) + '</p>'
         + removeBtn
         + '</div>'
         + '<div class="grid sm:grid-cols-2 gap-3">'
-        + '<label class="block"><span class="text-lg font-medium text-gray-600">First name <span class="text-red-600">*</span></span>'
+        + '<label class="block"><span class="text-lg font-medium text-gray-600">' + esc(t('js.first_name')) + ' <span class="text-red-600">*</span></span>'
         + '<input type="text" name="attendee_first[' + i + ']" data-attendee-first required maxlength="100" autocomplete="given-name"'
         + ' class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="' + esc(data.first || '') + '"></label>'
-        + '<label class="block"><span class="text-lg font-medium text-gray-600">Last name <span class="text-red-600">*</span></span>'
+        + '<label class="block"><span class="text-lg font-medium text-gray-600">' + esc(t('js.last_name')) + ' <span class="text-red-600">*</span></span>'
         + '<input type="text" name="attendee_last[' + i + ']" data-attendee-last required maxlength="100" autocomplete="family-name"'
         + ' class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="' + esc(data.last || '') + '"></label>'
         + '</div>'
-        + '<label class="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">'
-        + '<input type="checkbox" name="attendee_child_' + i + '" value="1" data-attendee-child'
-        + ' class="text-md h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"'
-        + (data.child ? ' checked' : '') + '>'
-        + '<span class="text-lg">12歲或以下</span></label>'
-        + '<p class="text-lg font-medium text-gray-600">請選一 <span class="text-red-600">*</span></p>'
+        + '<p class="text-lg font-medium text-gray-600">' + esc(t('js.pick_lunch')) + ' <span class="text-red-600">*</span></p>'
         + buildLunchGrid(i, data.box || '')
         + '<div class="flex flex-wrap items-center gap-3 pt-1">'
-        + '<button type="button" data-attendee-ok class="btn-primary px-5 py-2 text-sm" disabled>加入帳單</button>'
-        + '<button type="button" data-attendee-cancel class="rounded-md border-2 border-gray-300 bg-white px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>'
+        + '<button type="button" data-attendee-ok class="btn-primary px-5 py-2 text-sm" disabled>' + esc(t('js.add_to_bill')) + '</button>'
+        + '<button type="button" data-attendee-cancel class="rounded-md border-2 border-gray-300 bg-white px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">' + esc(t('js.cancel')) + '</button>'
         + '</div>'
         + '</div>';
       attendeeList.appendChild(row);
@@ -1080,13 +1109,6 @@ layout_head('Order');
           if (i === 0) recalc();
         });
       });
-      var childBox = row.querySelector('input[data-attendee-child]');
-      if (childBox) {
-        childBox.addEventListener('change', function () {
-          syncAttendeeOkBtn(row);
-          if (i === 0) recalc();
-        });
-      }
       var okBtn = row.querySelector('[data-attendee-ok]');
       if (okBtn) {
         okBtn.addEventListener('click', function () {
@@ -1094,7 +1116,10 @@ layout_head('Order');
             syncAttendeeOkBtn(row);
             return;
           }
+          var snap = row._editSnapshot;
+          var wasUpdate = !!(snap && snap.first && snap.last && snap.box);
           setRowMode(row, true);
+          showAttendeePlacedMsg(wasUpdate);
           recalc();
         });
       }
@@ -1106,6 +1131,7 @@ layout_head('Order');
           if (snap && snap.first && snap.last && snap.box) {
             applyAttendeeData(row, snap);
             setRowMode(row, true);
+            showAttendeePlacedMsg(true);
             recalc();
             return;
           }
@@ -1113,6 +1139,7 @@ layout_head('Order');
           if (next.length > 1) {
             next.splice(idx, 1);
             renderAttendees(next);
+            hideAttendeePlacedMsg();
             recalc();
             return;
           }
@@ -1123,6 +1150,7 @@ layout_head('Order');
             child: false
           });
           syncAttendeeOkBtn(row);
+          hideAttendeePlacedMsg();
           recalc();
         });
       }
@@ -1130,6 +1158,7 @@ layout_head('Order');
       if (editBtn) {
         editBtn.addEventListener('click', function () {
           setRowMode(row, false);
+          hideAttendeePlacedMsg();
           recalc();
           var firstEl = row.querySelector('input[data-attendee-first]');
           if (firstEl) firstEl.focus();
@@ -1179,6 +1208,7 @@ layout_head('Order');
     if (rows.length >= MAX_ATTENDEES) return;
     rows.push({ first: '', last: '', box: '', child: false });
     renderAttendees(rows, rows.length - 1);
+    hideAttendeePlacedMsg();
     recalc();
   }
   function syncAdult1FromDetails() {
@@ -1279,12 +1309,10 @@ layout_head('Order');
 
   function syncAttendCounts() {
     var people = collectAttendees();
-    var children = 0;
-    people.forEach(function (a) { if (a.child) children++; });
-    setAttendCount('attending_adults', people.length - children);
-    setAttendCount('attending_children', children);
+    setAttendCount('attending_adults', people.length);
+    setAttendCount('attending_children', 0);
     var err = document.getElementById('attendance-adult-error');
-    if (err) err.classList.toggle('hidden', people.length < 1 || children < people.length);
+    if (err) err.classList.add('hidden');
     syncAddNextBtn();
   }
 
@@ -1299,13 +1327,13 @@ layout_head('Order');
     totalEl.textContent = '$' + (cents / 100).toFixed(2);
     syncFormSteps();
     payBtn.disabled = !checkoutOk || !formIsComplete();
-    payBtn.textContent = cents === 0 ? 'Continue' : 'Continue';
+    payBtn.textContent = t('checkout.continue');
     if (!checkoutOk) {
       payBtn.title = formBrowseOk
-        ? 'Ordering has not opened yet — you can fill the form, but checkout is not available'
-        : 'Checkout is only available during the ordering window';
+        ? t('checkout.title_not_open')
+        : t('checkout.title_window');
     } else if (!CAMPUSES_OK) {
-      payBtn.title = 'Campus options are not configured';
+      payBtn.title = t('checkout.title_no_campus');
     } else {
       payBtn.title = '';
     }

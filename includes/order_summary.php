@@ -3,6 +3,8 @@
  * Shared order summary for /pay and /success (and anywhere else).
  */
 
+require_once __DIR__ . '/i18n.php';
+
 /**
  * Per-person lunch rows for an order.
  *
@@ -39,10 +41,16 @@ function order_lunch_rows(array $order): array
             continue;
         }
         $info = $boxByCode[$code] ?? ['name' => $code, 'price' => 0];
+        $zhName = (string) $info['name'];
+        $enAbbrev = dish_en_abbrev(dish_english_name($code), 30);
+        $boxHtml = '<span class="font-semibold text-indigo-700">' . e($code) . '</span> '
+            . dish_name_html($zhName);
+        if ($enAbbrev !== '') {
+            $boxHtml .= ' <span class="text-[0.85em] font-normal text-gray-500">' . e($enAbbrev) . '</span>';
+        }
         $rows[] = [
             'name'     => $name,
-            'box_html' => '<span class="font-semibold text-indigo-700">' . e($code) . '</span> '
-                . dish_name_html($info['name']),
+            'box_html' => $boxHtml,
             'subtotal' => (int) $info['price'],
         ];
     }
@@ -95,8 +103,8 @@ function order_attendance_count(array $order): int
  */
 function render_order_summary(array $order, array $opts = []): void
 {
-    $heading    = (string) ($opts['heading'] ?? '訂單摘要');
-    $totalLabel = (string) ($opts['total_label'] ?? '應付總額');
+    $heading    = (string) ($opts['heading'] ?? 'Order Summary');
+    $totalLabel = (string) ($opts['total_label'] ?? 'Total Due');
     $cardClass  = trim('card mb-6 space-y-3 text-sm ' . (string) ($opts['card_class'] ?? ''));
     $showId     = !empty($opts['show_order_id']);
     $orderId    = (int) ($order['id'] ?? 0);

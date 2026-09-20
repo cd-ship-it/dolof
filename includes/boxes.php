@@ -70,7 +70,7 @@ function app_title(?PDO $pdo = null): string
             return $t;
         }
     }
-    return defined('APP_TITLE') ? APP_TITLE : 'Deacons Ordination Lunch Ordering Form';
+    return defined('APP_TITLE') ? APP_TITLE : '執事按立禮感恩午宴';
 }
 
 /** Parse ORDERING_START / ORDERING_END from .env (Pacific Time). */

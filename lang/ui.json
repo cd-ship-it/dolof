@@ -1,0 +1,214 @@
+{
+  "lang.zh": { "zh": "中文", "en": "中文" },
+  "lang.en": { "zh": "English", "en": "English" },
+
+  "app.title": {
+    "zh": "執事按立禮感恩午宴",
+    "en": "Deacons Ordination Luncheon"
+  },
+
+  "dish.A": {
+    "zh": "香茜榨菜牛肉餅飯",
+    "en": "Steamed beef patty w/ preserved vegetable & coriander over rice"
+  },
+  "dish.B": {
+    "zh": "叉燒貴妃雞雙拼飯",
+    "en": "BBQ pork and empress chicken over rice"
+  },
+  "dish.C": {
+    "zh": "西蘭花雞片飯",
+    "en": "Broccoli w/ sliced sauted chicken over rice"
+  },
+  "dish.D": {
+    "zh": "咖喱猪扒飯",
+    "en": "Curry pork chop over rice"
+  },
+  "dish.E": {
+    "zh": "素雜錦飯",
+    "en": "Sauted vegetable delight w/ rice"
+  },
+
+  "cancelled.flash": {
+    "zh": "付款未完成，訂單尚未成立。您的選擇會暫留一段時間 — 可在下方再試一次。",
+    "en": "Payment was not completed, so your order was not placed. Your selections are held for a short time — you can try again below."
+  },
+
+  "banner.not_open_yet": { "zh": "尚未開始接受訂購", "en": "Ordering is not open yet" },
+  "banner.explore_opens": {
+    "zh": "您可以先填寫表格。結帳於 {date} 開放。",
+    "en": "You can explore the form now. Checkout opens {date}."
+  },
+  "banner.explore_not_yet": {
+    "zh": "您可以先填寫表格。結帳尚未開放。",
+    "en": "You can explore the form now. Checkout is not available yet."
+  },
+  "banner.open": { "zh": "現正接受訂購", "en": "Ordering is open" },
+  "banner.open_until": {
+    "zh": "請於 {date} 前完成訂購。",
+    "en": "Place your order anytime until {date}."
+  },
+  "banner.open_now": {
+    "zh": "現在可以下單。",
+    "en": "You can place your order now."
+  },
+  "banner.closed": { "zh": "訂購已結束", "en": "Ordering has closed" },
+  "banner.closed_body": {
+    "zh": "您仍可瀏覽表格，但已無法結帳。截止時間：{date}。",
+    "en": "You can still look around, but checkout is no longer available. Window ended {date}."
+  },
+  "banner.admin_closed": { "zh": "訂購暫時關閉", "en": "Ordering is temporarily closed" },
+  "banner.admin_closed_body": {
+    "zh": "您可以瀏覽表格，但教會辦公室已暫停結帳。",
+    "en": "You can explore the form, but checkout is paused by the church office."
+  },
+  "banner.accepting_on": {
+    "zh": "開始接受訂購：{date}",
+    "en": "Accepting order on {date}"
+  },
+  "banner.deadline": {
+    "zh": "截止日期: {date}",
+    "en": "Deadline: {date}"
+  },
+  "banner.countdown_prefix": { "zh": "倒數", "en": "Countdown" },
+  "banner.deadline_in": { "zh": "距離截止還有 {remain}", "en": "Deadline in {remain}" },
+
+  "errors.fix_title": { "zh": "請修正以下問題：", "en": "Please fix the following:" },
+
+  "font.smaller": { "zh": "縮小字體", "en": "Smaller text" },
+  "font.bigger": { "zh": "放大字體", "en": "Larger text" },
+
+  "details.heading": { "zh": "個人/小組組長/家長 資料", "en": "Your details (individual / group leader / parent)" },
+  "details.first_name": { "zh": "名 First name", "en": "First name" },
+  "details.last_name": { "zh": "姓 Last name", "en": "Last name" },
+  "details.contact_required": {
+    "zh": "請輸入電郵或電話號碼.",
+    "en": "Please enter an email or phone number."
+  },
+  "details.email": { "zh": "Email", "en": "Email" },
+  "details.or": { "zh": "或", "en": "or" },
+  "details.phone": {
+    "zh": "Phone (建議使用電郵以便收到電子收據。)",
+    "en": "Phone (email recommended for e-receipt)"
+  },
+  "details.contact_error": {
+    "zh": "請輸入有效的電郵或電話號碼。",
+    "en": "Please enter a valid email or a phone number."
+  },
+
+  "campus.heading": { "zh": "會堂", "en": "Campus" },
+  "campus.not_configured_title": {
+    "zh": "尚未設定會堂選項。",
+    "en": "Campus options are not configured."
+  },
+  "campus.not_configured_body": {
+    "zh": "請聯絡教會辦公室 — 須先設定會堂才能繼續網上訂購。",
+    "en": "Please contact the church office — online ordering cannot continue until campuses are defined."
+  },
+  "campus.error": {
+    "zh": "請選擇會堂以繼續。",
+    "en": "Please choose a campus to continue."
+  },
+  "lift.heading": { "zh": "小組名稱", "en": "Life Group name" },
+  "lift.no_life_group": {
+    "zh": "我不參加小組",
+    "en": "I don't join a Life Group"
+  },
+
+  "attendance.heading": { "zh": "請點餐", "en": "Order lunch" },
+  "attendance.price_note": {
+    "zh": "每份$15連稅。",
+    "en": "$15 per box including tax."
+  },
+  "attendance.refund_note": {
+    "zh": "11月1日後恕不退款",
+    "en": "No refund after Nov 1st."
+  },
+  "attendance.add": {
+    "zh": "再加一位出席者",
+    "en": "Add another attendee"
+  },
+  "attendance.placed": {
+    "zh": "已加進訂單",
+    "en": "Order placed"
+  },
+  "attendance.updated": {
+    "zh": "訂單已更新",
+    "en": "Order Updated"
+  },
+  "attendance.adult_error": {
+    "zh": "至少需要一位非12歲或以下的出席者。",
+    "en": "At least one person who is not 12 or under is required."
+  },
+
+  "checkout.total_label": { "zh": "訂單總額", "en": "Order total" },
+  "checkout.continue": { "zh": "繼續", "en": "Continue" },
+  "checkout.title_no_campus": {
+    "zh": "尚未設定會堂選項",
+    "en": "Campus options are not configured"
+  },
+  "checkout.title_window": {
+    "zh": "僅在訂購時段內可結帳",
+    "en": "Checkout is only available during the ordering window"
+  },
+  "checkout.title_not_open": {
+    "zh": "訂購尚未開放 — 可先填寫表格，但暫時無法結帳",
+    "en": "Ordering has not opened yet — you can fill the form, but checkout is not available"
+  },
+
+  "modal.title": { "zh": "請核對您的訂單", "en": "Please review your order" },
+  "modal.name": { "zh": "姓名:", "en": "Name:" },
+  "modal.email": { "zh": "電郵:", "en": "Email:" },
+  "modal.campus": { "zh": "會堂:", "en": "Campus:" },
+  "modal.lift_group": { "zh": "小組:", "en": "Lift Group:" },
+  "modal.phone": { "zh": "電話:", "en": "Phone:" },
+  "modal.attendance": { "zh": "出席人數:", "en": "Attendance:" },
+  "modal.total": { "zh": "應付總額", "en": "Total to pay" },
+  "modal.confirm_pay": { "zh": "確認並以信用卡付款", "en": "Confirm & Pay with card" },
+  "modal.confirm_rsvp": { "zh": "確認留位", "en": "Confirm RSVP" },
+  "modal.pay_note_elements": {
+    "zh": "下一步將前往付款頁面以信用卡支付此金額。付款成功後訂單才算確認。",
+    "en": "Next you'll continue to our payment page to pay this amount by card. Your order is confirmed only after payment succeeds."
+  },
+  "modal.pay_note_hosted": {
+    "zh": "下一步將前往 Stripe 以信用卡支付此金額。付款成功後訂單才算確認。",
+    "en": "Next you'll be taken to Stripe to pay this amount by card. Your order is confirmed only after payment succeeds."
+  },
+  "modal.rsvp_note": {
+    "zh": "您的出席將被記錄，無需付款。",
+    "en": "Your attendance will be recorded. No payment is required."
+  },
+  "modal.back": { "zh": "← 返回修改", "en": "← Back to edit" },
+  "modal.email_none": {
+    "zh": "（無 — 確認信將寄至教會辦公室）",
+    "en": "(none — confirmation to church office)"
+  },
+  "modal.child_count": {
+    "zh": "（{n} 位12歲或以下）",
+    "en": "({n} under or 12 years old)"
+  },
+  "modal.child_suffix": {
+    "zh": "（12歲或以下）",
+    "en": "(under or 12 years old)"
+  },
+  "modal.attendance_only": {
+    "zh": "未點餐 — 僅留位",
+    "en": "No lunch boxes — attendance only"
+  },
+
+  "js.sold_out": { "zh": "售罄", "en": "Sold out" },
+  "js.left": { "zh": "{n} 份剩餘", "en": "{n} left" },
+  "js.not_ordering": { "zh": "留位但不點餐", "en": "Reserve seat, no lunch" },
+  "js.add_to_bill": { "zh": "加入帳單", "en": "Add to bill" },
+  "js.save_changes": { "zh": "更新", "en": "Update" },
+  "js.edit": { "zh": "更改", "en": "Edit" },
+  "js.cancel": { "zh": "取消", "en": "Cancel" },
+  "js.attendee_n": { "zh": "第{n}位出席者", "en": "Attendee {n}" },
+  "js.first_name": { "zh": "名 First name", "en": "First name" },
+  "js.last_name": { "zh": "姓 Last name", "en": "Last name" },
+  "js.child_checkbox": { "zh": "12歲或以下", "en": "12 or under" },
+  "js.pick_lunch": { "zh": "請選一", "en": "Choose one" },
+  "js.adult": { "zh": "成人", "en": "Adult" },
+  "js.child": { "zh": "孩童", "en": "Child" },
+  "js.not_ordering_summary": { "zh": "不點餐", "en": "Not Ordering" },
+  "js.remove": { "zh": "移除", "en": "Remove" }
+}

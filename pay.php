@@ -70,22 +70,22 @@ if ($pubKey === '') {
 layout_head('Pay');
 ?>
 <div class="card mb-6">
-  <h1 class="text-2xl font-bold text-indigo-900">準備付款</h1>
+  <h1 class="text-2xl font-bold text-indigo-900">Complete Payment</h1>
   <p class="text-sm text-gray-600 mt-1">
-    您的訂單已保留，請在盡快完成付款。訂單編號：<?= (int) $orderId ?>.
+      Please complete your payment for order <?= (int) $orderId ?>.
   </p>
   <?php if ($holdExpiresTs > 0): ?>
   <p class="text-sm text-amber-800 mt-2" id="hold-countdown"
      data-expires="<?= (int) $holdExpiresTs ?>">
-     訂單只保留<span id="hold-remaining">…</span>。
+     Your order will be held for <span id="hold-remaining">…</span>.
   </p>
   <?php endif; ?>
 </div>
 
-<?php render_order_summary($order, ['total_label' => '應付總額']); ?>
+<?php render_order_summary($order, ['total_label' => 'Total Due']); ?>
 
 <div class="card mb-6 space-y-4">
-  <h2 class="text-base font-semibold text-gray-900">付款</h2>
+  <h2 class="text-base font-semibold text-gray-900">Payment</h2>
   <div id="payment-error" class="hidden rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert"></div>
 
   <div id="express-checkout-wrap" class="hidden">
