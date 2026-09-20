@@ -25,7 +25,17 @@ if (STRIPE_WEBHOOK_SECRET === '') {
 try {
     $event = \Stripe\Webhook::constructEvent($payload, $sig, STRIPE_WEBHOOK_SECRET);
 } catch (Throwable $e) {
-    app_log('high', 'Payment', 'webhook rejected (bad signature)', ['error' => $e->getMessage()]);
+    // Diagnose secret/endpoint mismatches without logging the secret itself.
+    // Common cause: Dashboard endpoint secret in .env while events come from
+    // `stripe listen` (or the reverse), or test secret vs live endpoint.
+    app_log('high', 'Payment', 'webhook rejected (bad signature)', [
+        'error' => $e->getMessage(),
+        'has_signature_header' => $sig !== '',
+        'payload_bytes' => is_string($payload) ? strlen($payload) : 0,
+        'secret_len' => strlen(STRIPE_WEBHOOK_SECRET),
+        'app_env' => defined('APP_ENV') ? APP_ENV : null,
+        'app_url' => defined('APP_URL') ? APP_URL : null,
+    ]);
     http_response_code(400);
     exit('Invalid signature');
 }

@@ -186,29 +186,62 @@ layout_head('Pay');
         }
       });
 
+      // loadActions once — required before confirm(); also forces a read of session.total
+      // so Stripe will allow confirm() (docs require displaying/reading the amount).
+      var checkoutActions = null;
+      if (typeof checkout.loadActions === 'function') {
+        var loaded = await checkout.loadActions();
+        if (loaded && loaded.type === 'error') {
+          throw (loaded.error && loaded.error.message)
+            ? new Error(loaded.error.message)
+            : new Error('Could not prepare payment.');
+        }
+        checkoutActions = loaded && loaded.actions ? loaded.actions : null;
+        if (checkoutActions && typeof checkoutActions.getSession === 'function') {
+          var sessionNow = checkoutActions.getSession();
+          if (sessionNow && sessionNow.total && sessionNow.total.total) {
+            // Touch amount so Stripe treats the total as displayed.
+            void sessionNow.total.total.amount;
+            if (sessionNow.total.total.amount && payBtn) {
+              totalLabel = sessionNow.total.total.amount;
+              payBtn.textContent = 'Pay ' + totalLabel;
+            }
+          }
+          canConfirm = !!(sessionNow && sessionNow.canConfirm);
+        }
+      }
+
       if (typeof checkout.on === 'function') {
         checkout.on('change', function (session) {
           canConfirm = !!(session && session.canConfirm);
+          if (session && session.total && session.total.total && session.total.total.amount && payBtn && !submitting) {
+            totalLabel = session.total.total.amount;
+            payBtn.textContent = 'Pay ' + totalLabel;
+          }
           setPayEnabled();
         });
-      } else {
+      } else if (!checkoutActions) {
         canConfirm = true;
       }
 
-      confirmFn = async function () {
+      confirmFn = async function (confirmOpts) {
+        if (checkoutActions && typeof checkoutActions.confirm === 'function') {
+          return await checkoutActions.confirm(confirmOpts || undefined);
+        }
         if (typeof checkout.loadActions === 'function') {
-          var loaded = await checkout.loadActions();
-          if (loaded && loaded.type === 'error') {
-            return { type: 'error', error: loaded.error || { message: 'Could not prepare payment.' } };
+          var again = await checkout.loadActions();
+          if (again && again.type === 'error') {
+            return { type: 'error', error: again.error || { message: 'Could not prepare payment.' } };
           }
-          var actions = loaded && loaded.actions ? loaded.actions : null;
+          var actions = again && again.actions ? again.actions : null;
           if (!actions || typeof actions.confirm !== 'function') {
             return { type: 'error', error: { message: 'Payment confirm is unavailable.' } };
           }
-          return await actions.confirm();
+          checkoutActions = actions;
+          return await actions.confirm(confirmOpts || undefined);
         }
         if (typeof checkout.confirm === 'function') {
-          return await checkout.confirm();
+          return await checkout.confirm(confirmOpts || undefined);
         }
         return { type: 'error', error: { message: 'Payment confirm is unavailable.' } };
       };
@@ -233,13 +266,33 @@ layout_head('Pay');
             expressWrap.classList.remove('hidden');
           }
         });
-        expressCheckoutElement.on('confirm', async function () {
-          if (submitting || holdExpired || !confirmFn) return;
+        expressCheckoutElement.on('confirm', async function (event) {
+          // Must always resolve the Express Checkout confirm — early return without
+          // confirm({expressCheckoutConfirmEvent}) triggers Stripe's invalid-confirm error.
+          if (holdExpired) {
+            showError('Your seat hold expired. Please cancel and place your order again.');
+            if (event && typeof event.paymentFailed === 'function') {
+              event.paymentFailed({ reason: 'fail', message: 'Order hold expired.' });
+            }
+            return;
+          }
+          if (submitting) {
+            if (event && typeof event.paymentFailed === 'function') {
+              event.paymentFailed({ reason: 'fail', message: 'Payment already in progress.' });
+            }
+            return;
+          }
           clearError();
           submitting = true;
           setPayEnabled();
           try {
-            var result = await confirmFn();
+            var result;
+            if (typeof event.confirm === 'function') {
+              // Older Stripe.js path.
+              result = await event.confirm();
+            } else {
+              result = await confirmFn({ expressCheckoutConfirmEvent: event });
+            }
             if (result && result.type === 'error') {
               showError((result.error && result.error.message) || 'Payment was not completed.');
             } else if (result && result.error) {
@@ -247,6 +300,9 @@ layout_head('Pay');
             }
           } catch (e) {
             showError((e && e.message) ? e.message : 'Payment failed. Please try again.');
+            if (event && typeof event.paymentFailed === 'function') {
+              try { event.paymentFailed({ reason: 'fail', message: (e && e.message) || 'Payment failed.' }); } catch (_ignored) {}
+            }
           }
           submitting = false;
           setPayEnabled();
