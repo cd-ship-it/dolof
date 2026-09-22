@@ -78,6 +78,19 @@ CREATE TABLE IF NOT EXISTS `dolos_settings` (
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `dolos_staff_tokens` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `token`      CHAR(48)     NOT NULL,
+  `first_name` VARCHAR(100) NOT NULL,
+  `last_name`  VARCHAR(100) NOT NULL,
+  `email`      VARCHAR(200) NOT NULL,
+  `order_id`   INT UNSIGNED NULL,
+  `used_at`    DATETIME     NULL,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_token` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT INTO `dolos_boxes` (`code`, `name`, `price_cents`, `cap`, `sort_order`) VALUES
   ('A', 'Lunch Box A', 1500, 100, 1),
   ('B', 'Lunch Box B', 1500, 100, 2),

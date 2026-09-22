@@ -163,7 +163,7 @@
   "modal.name": { "zh": "姓名:", "en": "Name:" },
   "modal.email": { "zh": "電郵:", "en": "Email:" },
   "modal.campus": { "zh": "會堂:", "en": "Campus:" },
-  "modal.lift_group": { "zh": "小組:", "en": "Lift Group:" },
+  "modal.lift_group": { "zh": "小組:", "en": "Life Group:" },
   "modal.phone": { "zh": "電話:", "en": "Phone:" },
   "modal.attendance": { "zh": "出席人數:", "en": "Attendance:" },
   "modal.total": { "zh": "應付總額", "en": "Total to pay" },

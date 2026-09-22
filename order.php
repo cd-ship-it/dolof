@@ -13,6 +13,18 @@ require_once __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/includes/i18n.php';
 
 auth_start_session();
+
+// Staff order mode: set by staff_order.php / staff-checkout.php before requiring
+// this file. Bypasses the public ordering window/admin toggle, hardcodes
+// Campus/Life Group, and is English-only (no language selector) — see
+// staff_order.php for the token lookup that gates entry.
+$staffMode   = $staffMode ?? false;
+$staffPerson = $staffPerson ?? null;
+$staffToken  = $staffToken ?? '';
+if ($staffMode) {
+    $_GET['lang'] = 'en';
+}
+
 $lang = i18n_locale(); // ?lang=en|zh (default zh); remembered in session
 
 $form_errors = $form_errors ?? [];
@@ -26,6 +38,10 @@ $orderEnd    = ordering_window_end();
 $maxQty      = DOLOS_MAX_QTY_PER_BOX;
 $cancelled   = isset($_GET['cancelled']);
 $checkoutModeElements = checkout_mode_is_elements($pdo);
+
+if ($staffMode) {
+    $checkoutOk = true;
+}
 
 if (!empty($_SESSION['flash_error'])) {
     $form_errors[] = (string) $_SESSION['flash_error'];
@@ -47,6 +63,7 @@ layout_head('Order');
 <!-- <p class="text-gray-600 mb-6">Select your lunch boxes and pay online to confirm your order.</p> -->
 
 <div class="mb-4 flex flex-wrap items-center justify-start gap-2 text-sm">
+  <?php if (!$staffMode): ?>
   <a href="<?= e(order_lang_url('zh', $cancelled)) ?>"
      class="rounded-md border-2 px-4 py-2 font-medium <?= $lang === 'zh'
        ? 'border-indigo-600 bg-indigo-50 text-indigo-800'
@@ -56,6 +73,7 @@ layout_head('Order');
        ? 'border-indigo-600 bg-indigo-50 text-indigo-800'
        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' ?>"><?= e(t('lang.en')) ?></a>
   <span class="text-gray-400 px-1 select-none" aria-hidden="true">|</span>
+  <?php endif; ?>
   <button type="button" id="font-smaller"
           class="rounded-md border-2 border-gray-300 bg-white px-4 py-2 font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
     <?= e(t('font.smaller')) ?>
@@ -129,6 +147,7 @@ layout_head('Order');
 ?>
 
 
+<?php if (!$staffMode): ?>
 <?php if ($orderStart): ?>
 <div id="ordering-opens-banner" class="card mb-6 border-emerald-300 bg-emerald-50 text-emerald-900<?= $beforeStart ? '' : ' hidden' ?>">
   <p class="font-semibold text-base"><?= e(t('banner.accepting_on', ['date' => ordering_format_pt($orderStart)])) ?></p>
@@ -154,6 +173,7 @@ layout_head('Order');
   <?php else: ?>
     <p class="hidden" id="ordering-countdown"></p>
   <?php endif; ?>
+<?php endif; ?>
 
 <?php if ($form_errors): ?>
   <div class="card mb-6 border-red-300 bg-red-50">
@@ -164,21 +184,47 @@ layout_head('Order');
   </div>
 <?php endif; ?>
 
-<form method="post" action="<?= e(APP_URL) ?>/create-checkout" class="space-y-6" id="order-form">
+<form method="post" action="<?= e(APP_URL) ?>/<?= $staffMode ? 'staff-checkout' : 'create-checkout' ?>" class="space-y-6" id="order-form">
   <?= csrf_input() ?>
+  <?php if ($staffMode): ?>
+    <input type="hidden" name="staff_token" value="<?= e($staffToken) ?>">
+  <?php endif; ?>
+
+  <?php if ($staffMode): ?>
+    <div class="card border-amber-300 bg-amber-50 text-amber-900">
+      <p class="font-semibold">
+        This form is intended for <?= e(trim(($staffPerson['first_name'] ?? '') . ' ' . ($staffPerson['last_name'] ?? ''))) ?>.
+      </p>
+      <p class="text-sm mt-1">
+        If you are not this person, or a family member ordering on their behalf, please exit this page now and do not proceed to order.
+      </p>
+    </div>
+  <?php endif; ?>
 
   <div class="card space-y-4 transition-opacity duration-200<?= $formBrowseOk ? '' : ' form-step-locked' ?>" data-form-step="details"<?= $formBrowseOk ? '' : ' aria-disabled="true"' ?>>
+    <?php if (!$staffMode): ?>
     <h2 class="text-2xl font-semibold text-gray-900"><?= e(t('details.heading')) ?></h2>
+    <?php endif; ?>
     <div class="grid sm:grid-cols-2 gap-4">
       <label class="block">
         <span class="text-xl font-medium text-gray-700"><?= e(t('details.first_name')) ?> <span class="text-red-600">*</span></span>
-        <input type="text" name="first_name" required maxlength="100" value="<?= e($old['first_name'] ?? '') ?>"
-               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <?php if ($staffMode): ?>
+          <p class="mt-1 text-lg text-gray-900"><?= e($old['first_name'] ?? '') ?></p>
+          <input type="hidden" name="first_name" value="<?= e($old['first_name'] ?? '') ?>">
+        <?php else: ?>
+          <input type="text" name="first_name" required maxlength="100" value="<?= e($old['first_name'] ?? '') ?>"
+                 class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <?php endif; ?>
       </label>
       <label class="block">
         <span class="text-xl font-medium text-gray-700"><?= e(t('details.last_name')) ?> <span class="text-red-600">*</span></span>
-        <input type="text" name="last_name" required maxlength="100" value="<?= e($old['last_name'] ?? '') ?>"
-               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <?php if ($staffMode): ?>
+          <p class="mt-1 text-lg text-gray-900"><?= e($old['last_name'] ?? '') ?></p>
+          <input type="hidden" name="last_name" value="<?= e($old['last_name'] ?? '') ?>">
+        <?php else: ?>
+          <input type="text" name="last_name" required maxlength="100" value="<?= e($old['last_name'] ?? '') ?>"
+                 class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <?php endif; ?>
       </label>
     </div>
     <hr class="border-gray-200">
@@ -188,9 +234,14 @@ layout_head('Order');
       <div class="flex-1">
         <label class="block">
           <span class="text-xl font-medium text-gray-700"><?= e(t('details.email')) ?></span>
-          <input type="email" name="email" maxlength="200" value="<?= e($old['email'] ?? '') ?>"
-                 class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                 autocomplete="email">
+          <?php if ($staffMode): ?>
+            <p class="mt-1 text-lg text-gray-900"><?= e($old['email'] ?? '') ?></p>
+            <input type="hidden" name="email" value="<?= e($old['email'] ?? '') ?>">
+          <?php else: ?>
+            <input type="email" name="email" maxlength="200" value="<?= e($old['email'] ?? '') ?>"
+                   class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                   autocomplete="email">
+          <?php endif; ?>
         </label>
         <p id="email-error" class="hidden mt-1 text-sm font-medium text-red-600"><?= e(t('details.email_error')) ?></p>
       </div>
@@ -236,7 +287,12 @@ layout_head('Order');
     $attendeesOld = array_slice($attendeesOld, 0, 50);
   ?>
   <div class="card space-y-4 transition-opacity duration-200<?= $stepUnlocked() ? '' : ' form-step-locked' ?>" data-form-step="campus"<?= $stepUnlocked() ? '' : ' aria-disabled="true"' ?>>
+    <?php if ($staffMode): ?>
+      <h2 class="text-2xl font-semibold text-gray-900">Campus &amp; Life Group <span class="text-gray-400 font-normal text-base">(optional)</span></h2>
+      <p class="text-sm text-gray-600">If you'd like to be seated with your Campus/Life Group, please select the options below. Otherwise, leave this blank.</p>
+    <?php else: ?>
     <h2 class="text-2xl font-semibold text-gray-900"><?= e(t('campus.heading')) ?> <span class="text-red-600">*</span></h2>
+    <?php endif; ?>
 
     <?php if (!$campusesConfigured): ?>
       <div class="rounded-lg border border-red-300 bg-red-50 px-3 py-3 text-sm text-red-700">
@@ -257,7 +313,7 @@ layout_head('Order');
     <?php endif; ?>
 
     <div class="block space-y-2">
-      <label for="lift-group-input" class="text-2xl font-semibold text-gray-900"><?= e(t('lift.heading')) ?> <span class="text-red-600">*</span></label>
+      <label for="lift-group-input" class="text-2xl font-semibold text-gray-900"><?= e(t('lift.heading')) ?> <?php if (!$staffMode): ?><span class="text-red-600">*</span><?php endif; ?></label>
       <?php
         $noLgLabel = t('lift.no_life_group');
         $noLgValue = 'No Life Group';
@@ -271,7 +327,7 @@ layout_head('Order');
       </label>
       <div class="relative">
         <input type="text" name="lift_group" id="lift-group-input"
-               required maxlength="20" autocomplete="one-time-code" autocapitalize="off" autocorrect="off" spellcheck="false"
+               <?= $staffMode ? '' : 'required' ?> maxlength="20" autocomplete="one-time-code" autocapitalize="off" autocorrect="off" spellcheck="false"
                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="lift-group-list"
                value="<?= e($old['lift_group'] ?? '') ?>"
                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500<?= $noLgSelected ? ' lg-field-locked' : '' ?>"
@@ -286,8 +342,10 @@ layout_head('Order');
   </div>
   <div class="card space-y-4 transition-opacity duration-200<?= $stepUnlocked() ? '' : ' form-step-locked' ?>" data-form-step="attendance"<?= $stepUnlocked() ? '' : ' aria-disabled="true"' ?>>
     <h2 class="text-2xl font-semibold text-gray-900"><?= e(t('attendance.heading')) ?><span class="text-red-600">*</span></h2>
+    <?php if (!$staffMode): ?>
     <p class="text-md "><?= e(t('attendance.price_note')) ?><br><?= e(t('attendance.refund_note')) ?>
     </p>
+    <?php endif; ?>
     <div id="attendees" class="space-y-4"
          data-initial-attendees="<?= e(json_encode($attendeesOld, JSON_UNESCAPED_UNICODE)) ?>"></div>
     <div id="attendee-placed-msg"
@@ -310,19 +368,19 @@ layout_head('Order');
       <p class="text-xs font-medium text-red-600">** 齋菜餐點由另一食肆提供 **</p>
     </div> -->
   </div>
-  <?php if ($orderStart): ?>
+  <?php if (!$staffMode && $orderStart): ?>
 <div id="ordering-opens-banner" class="card mb-6 border-emerald-300 bg-emerald-50 text-emerald-900<?= $beforeStart ? '' : ' hidden' ?>">
   <p class="font-semibold text-base"><?= e(t('banner.accepting_on', ['date' => ordering_format_pt($orderStart)])) ?></p>
 </div>
 <?php endif; ?>
   <div class="card flex items-center justify-between transition-opacity duration-200<?= $stepUnlocked() ? '' : ' form-step-locked' ?>" data-form-step="checkout"<?= $stepUnlocked() ? '' : ' aria-disabled="true"' ?>>
     <div>
-      <span class="text-sm text-gray-500"><?= e(t('checkout.total_label')) ?></span>
+      <span class="text-sm text-gray-500"><?= $staffMode ? 'Selected items (no charge)' : e(t('checkout.total_label')) ?></span>
       <div class="text-2xl font-bold text-indigo-900" id="order-total">$0.00</div>
     </div>
     <button type="submit" class="btn-primary" id="pay-btn" disabled
             data-checkout-ok="<?= $checkoutOk ? '1' : '0' ?>"
-            title="<?= e(!$campusesConfigured ? t('checkout.title_no_campus') : ($checkoutOk ? '' : t('checkout.title_window'))) ?>"><?= e(t('checkout.continue')) ?></button>
+            title="<?= e(!$campusesConfigured ? t('checkout.title_no_campus') : ($checkoutOk ? '' : t('checkout.title_window'))) ?>"><?= $staffMode ? 'Submit Order' : e(t('checkout.continue')) ?></button>
   </div>
   <!-- <p class="text-xs text-gray-500 text-center">You'll be redirected to Stripe to complete payment. Your order is confirmed only after payment.</p> -->
 </form>
@@ -344,7 +402,7 @@ layout_head('Order');
       <div>
         <span class="font-bold text-gray-900">Campus</span> <span id="sum-campus"></span>
         <span class="text-gray-300 mx-1.5">·</span>
-        <span class="font-bold text-gray-900">Lift Group</span> <span id="sum-lg"></span>
+        <span class="font-bold text-gray-900">Life Group</span> <span id="sum-lg"></span>
       </div>
     </div>
 
@@ -360,7 +418,7 @@ layout_head('Order');
         <tbody id="sum-rows"></tbody>
         <tfoot>
           <tr>
-            <td class="pt-3 font-bold text-base" colspan="2"><?= e(t('modal.total')) ?></td>
+            <td class="pt-3 font-bold text-base" colspan="2"><?= $staffMode ? 'Value (no charge)' : e(t('modal.total')) ?></td>
             <td class="pt-3 font-bold text-base text-right text-indigo-900" id="sum-total">$0.00</td>
           </tr>
         </tfoot>
@@ -379,13 +437,22 @@ layout_head('Order');
   </div>
 </div>
 
+<?php
+  // Staff mode is English-UI throughout, but dish names stay in Chinese
+  // (their real names) regardless — box_localized_name() would otherwise
+  // translate them to English along with the rest of the page text.
+  $boxDisplayName = static fn(array $b): string => $staffMode
+      ? (string) $b['name']
+      : box_localized_name($b['code'], (string) $b['name']);
+?>
 <script>
 (function () {
+  var staffMode = <?= $staffMode ? 'true' : 'false' ?>;
   var PRICES = <?= json_encode(array_column($boxes, 'price_cents', 'code')) ?>;
   var BOX_NAMES = <?= json_encode(array_column(
       array_map(static fn($b) => [
           'code' => $b['code'],
-          'name' => box_localized_name($b['code'], (string) $b['name']),
+          'name' => $boxDisplayName($b),
       ], $boxes),
       'name',
       'code'
@@ -400,7 +467,7 @@ layout_head('Order');
   ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   var BOXES = <?= json_encode(array_values(array_map(fn($b) => [
       'code' => $b['code'],
-      'name' => box_localized_name($b['code'], (string) $b['name']),
+      'name' => $boxDisplayName($b),
       'sold_out' => (bool) $b['sold_out'],
   ], $boxes)), JSON_UNESCAPED_UNICODE) ?>;
   var LOW_STOCK = <?= (int) DOLOS_LOW_STOCK_THRESHOLD ?>;
@@ -836,7 +903,10 @@ layout_head('Order');
 
     var confirmGo = document.getElementById('confirm-go');
     var confirmNote = document.getElementById('confirm-pay-note');
-    if (total === 0) {
+    if (staffMode) {
+      confirmGo.textContent = 'Confirm & Submit (no payment)';
+      if (confirmNote) confirmNote.textContent = 'This is a staff order — no payment is required.';
+    } else if (total === 0) {
       confirmGo.textContent = t('modal.confirm_rsvp');
       if (confirmNote) confirmNote.textContent = t('modal.rsvp_note');
     } else {
@@ -859,7 +929,7 @@ layout_head('Order');
       if (banner) banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    if (!CAMPUSES_OK || !campusChosen()) {
+    if (!staffMode && (!CAMPUSES_OK || !campusChosen())) {
       e.preventDefault();
       if (campusError) {
         campusError.classList.remove('hidden');
@@ -867,7 +937,7 @@ layout_head('Order');
       }
       return;
     }
-    if (!fieldVal('lift_group')) {
+    if (!staffMode && !fieldVal('lift_group')) {
       e.preventDefault();
       if (lgError) {
         lgError.classList.remove('hidden');
@@ -1028,7 +1098,7 @@ layout_head('Order');
         + (soldOut ? ' disabled' : '') + '>'
         + '<span class="font-bold">' + esc(b.code) + '</span>'
         + '<span class="leading-tight">' + dishNameHtml(b.name) + '</span>'
-        + '<span class="text-[10px] mt-0.5 min-h-[1em] ' + (soldOut ? 'text-red-600 font-semibold' : 'text-amber-600') + '" data-lunch-rem="' + esc(b.code) + '">' + esc(remText) + '</span>'
+        + '<span class="text-md mt-0.5 min-h-[1em] ' + (soldOut ? 'text-red-600 font-semibold' : 'text-amber-600') + '" data-lunch-rem="' + esc(b.code) + '">' + esc(remText) + '</span>'
         + '</label>';
       if (showNotOrdering && i === 4) html += notOrderingLabel(groupName, selectedBox);
     });
@@ -1302,6 +1372,7 @@ layout_head('Order');
     return emailOk || phoneOk;
   }
   function campusComplete() {
+    if (staffMode) return true; // optional for staff — never blocks submission
     return CAMPUSES_OK && !!campusChosen() && fieldVal('lift_group') !== '';
   }
   function formIsComplete() {
@@ -1391,7 +1462,7 @@ layout_head('Order');
     totalEl.textContent = '$' + (cents / 100).toFixed(2);
     syncFormSteps();
     payBtn.disabled = !checkoutOk || !formIsComplete();
-    payBtn.textContent = t('checkout.continue');
+    payBtn.textContent = staffMode ? 'Submit Order' : t('checkout.continue');
     if (!checkoutOk) {
       payBtn.title = formBrowseOk
         ? t('checkout.title_not_open')
@@ -1421,7 +1492,7 @@ layout_head('Order');
         var opt = radio ? radio.closest('.lunch-option') : null;
         if (remEl) {
           remEl.textContent = lunchRemText(b.code, soldOut, rem);
-          remEl.className = 'text-[10px] mt-0.5 min-h-[1em] ' + (soldOut ? 'text-red-600 font-semibold' : 'text-amber-600');
+          remEl.className = 'text-md mt-0.5 min-h-[1em] ' + (soldOut ? 'text-red-600 font-semibold' : 'text-amber-600');
         }
         if (radio) {
           radio.disabled = soldOut;
@@ -1454,7 +1525,9 @@ layout_head('Order');
   recalc();
 
   function poll() {
-    fetch('<?= e(APP_URL) ?>/remaining-counts', { cache: 'no-store' })
+    // Query-bust so shared proxy caches (e.g. SiteGround) cannot serve a stale
+    // snapshot of capacity; browser cache: 'no-store' alone is not enough.
+    fetch('<?= e(APP_URL) ?>/remaining-counts?t=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(applyRemaining)
       .catch(function () {});

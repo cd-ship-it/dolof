@@ -134,7 +134,7 @@ function render_order_summary(array $order, array $opts = []): void
     <div>
       <span class="font-bold text-gray-900">Campus</span> <?= e($order['campus'] ?? '') ?>
       <span class="text-gray-300 mx-1.5">·</span>
-      <span class="font-bold text-gray-900">Lift Group</span> <?= e($order['lift_group'] ?? '') ?>
+      <span class="font-bold text-gray-900">Life Group</span> <?= e($order['lift_group'] ?? '') ?>
     </div>
   </div>
 

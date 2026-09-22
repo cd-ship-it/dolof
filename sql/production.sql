@@ -83,6 +83,20 @@ CREATE TABLE IF NOT EXISTS `dolos_settings` (
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ── One-time-use staff order links ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `dolos_staff_tokens` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `token`      CHAR(48)     NOT NULL,
+  `first_name` VARCHAR(100) NOT NULL,
+  `last_name`  VARCHAR(100) NOT NULL,
+  `email`      VARCHAR(200) NOT NULL,
+  `order_id`   INT UNSIGNED NULL,
+  `used_at`    DATETIME     NULL,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_token` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ── Seed data (idempotent) ──────────────────────────────────────────────────
 -- Placeholder box names — edit these on the admin dashboard once the caterer
 -- confirms the menu. Price/cap are also editable there.

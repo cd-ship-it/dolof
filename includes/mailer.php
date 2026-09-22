@@ -10,6 +10,7 @@ require_once __DIR__ . '/logger.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/boxes.php';
 require_once __DIR__ . '/orders.php';
+require_once __DIR__ . '/i18n.php';
 
 /**
  * @return array|null  order (with items) if the caller should send the email;
@@ -190,7 +191,6 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
         '{{EVENT_DATE}}'     => e($eventDate),
         '{{EVENT_LOCATION}}' => e($eventLocation),
     ]);
-
     $subject = $eventTitle . ' — Order Confirmed (#' . (int) $order['id'] . ')';
 
     $replyTo    = email_list((string) env('reply_to', 'cd@crosspointchurchsv.org'));
@@ -223,6 +223,172 @@ function send_order_confirmation_email(PDO $pdo, array $order): bool
     app_log('high', 'Email', $sent ? 'confirmation sent' : 'confirmation FAILED', [
         'order_id' => $order['id'], 'to' => $to, 'fallback' => $usedFallback,
     ]);
+
+    return $sent;
+}
+
+/** Confirmation email for a staff order (staff-checkout.php) — always $0, never says "paid". */
+function send_staff_order_confirmation_email(PDO $pdo, array $order): bool
+{
+    $to = trim((string) $order['email']);
+    $fallbackTo = 'com@crosspointchurchsv.org';
+    $usedFallback = false;
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        $to = $fallbackTo;
+        $usedFallback = true;
+    }
+
+    $eventTitle    = app_title($pdo);
+    $eventDate     = dolos_setting($pdo, 'event_date', '');
+    $eventLocation = dolos_setting($pdo, 'event_location', 'Crosspoint Church');
+    $eventTitle = 'Decano\'s Ordination Ceremony Luncheon';
+
+    $rowsHtml = '';
+    foreach ($order['items'] as $it) {
+        $rowsHtml .= sprintf(
+            '<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;">%s</td>'
+            . '<td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;">%d</td></tr>',
+            e($it['box_name']),
+            (int) $it['quantity']
+        );
+    }
+    if ($rowsHtml === '') {
+        $rowsHtml = '<tr><td colspan="2" style="padding:6px 12px;color:#6b7280;">No lunch boxes — attendance only</td></tr>';
+    }
+
+    $phone = trim((string) ($order['phone'] ?? ''));
+    $fallbackNote = $usedFallback
+        ? '<p style="font-size:14px;color:#b45309;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;">'
+          . 'No email was provided with this order. Confirmation sent to the church office.'
+          . ($phone !== '' ? ' Phone on file: <strong>' . e($phone) . '</strong>.' : '')
+          . '</p>'
+        : '';
+
+    $templatePath = dirname(__DIR__) . '/emails/staff-order-confirmation.html';
+    $template = is_file($templatePath) ? file_get_contents($templatePath) : '<p>Hi {{NAME}}, your staff order (#{{ORDER_ID}}) is confirmed. No payment required.</p>{{ITEMS_TABLE}}';
+
+    $body = strtr($template, [
+        '{{NAME}}'           => e(trim($order['first_name'] . ' ' . $order['last_name'])),
+        '{{ORDER_ID}}'       => (string) (int) $order['id'],
+        '{{ITEMS_TABLE}}'    => $rowsHtml,
+        '{{CAMPUS}}'         => e((string) ($order['campus'] ?? '')),
+        '{{LIFT_GROUP}}'     => e((string) ($order['lift_group'] ?? '')),
+        '{{ATTENDING_ADULTS}}'  => (string) (int) ($order['attending_adults'] ?? 0),
+        '{{ADULT_NAMES_LINE}}'  => ($an = decode_attendee_names($order['adult_names'] ?? null))
+            ? '<br><span style="color:#6b7280;">' . e(implode(', ', $an)) . '</span>'
+            : '',
+        '{{FALLBACK_NOTE}}'  => $fallbackNote,
+        '{{EVENT_TITLE}}'    => e($eventTitle),
+        '{{EVENT_DATE}}'     => e($eventDate),
+        '{{EVENT_LOCATION}}' => e($eventLocation),
+    ]);
+
+    $subject = $eventTitle . ' — Staff Order Confirmed (#' . (int) $order['id'] . ')';
+
+    $replyTo    = email_list((string) env('reply_to', 'cd@crosspointchurchsv.org'));
+    $ccList     = email_list((string) env('cc', ''));
+    $returnPath = trim((string) env('return_path', ''));
+    $fromEmail  = $replyTo[0] ?? 'cd@crosspointchurchsv.org';
+
+    $headers = [
+        'From: Crosspoint Church <' . $fromEmail . '>',
+        'Reply-To: ' . ($replyTo ? implode(', ', $replyTo) : $fromEmail),
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=UTF-8',
+        'X-Mailer: PHP/' . phpversion(),
+    ];
+    if ($returnPath !== '' && filter_var($returnPath, FILTER_VALIDATE_EMAIL)) {
+        $headers[] = 'Return-Path: ' . $returnPath;
+    }
+    if ($ccList) {
+        $headers[] = 'Cc: ' . implode(', ', $ccList);
+    }
+
+    $params = ($returnPath !== '' && filter_var($returnPath, FILTER_VALIDATE_EMAIL))
+        ? '-f ' . escapeshellarg($returnPath)
+        : null;
+
+    $sent = $params !== null
+        ? mail($to, $subject, $body, implode("\r\n", $headers), $params)
+        : mail($to, $subject, $body, implode("\r\n", $headers));
+
+    app_log('high', 'Email', $sent ? 'staff confirmation sent' : 'staff confirmation FAILED', [
+        'order_id' => $order['id'], 'to' => $to, 'fallback' => $usedFallback,
+    ]);
+
+    return $sent;
+}
+
+/** Personal invite email for the staff order link (scripts/generate-staff-invites.php). */
+function send_staff_invite_email(PDO $pdo, string $to, string $name, string $link): bool
+{
+    $eventTitle    = app_title($pdo);
+    $eventDate     = dolos_setting($pdo, 'event_date', '');
+    $eventLocation = dolos_setting($pdo, 'event_location', 'Crosspoint Church');
+    $eventTitle = 'Decano\'s Ordination Ceremony Luncheon';
+
+    $dishRowsHtml = '';
+    foreach (boxes_with_remaining($pdo) as $box) {
+        $code = (string) $box['code'];
+        $zhName = box_localized_name($code, (string) $box['name']);
+        $enName = dish_english_name($code);
+        $soldOut = !empty($box['sold_out']);
+        $rowStyle = $soldOut ? ' style="opacity:.55;"' : '';
+        $soldOutBadge = $soldOut
+            ? ' <span style="color:#b91c1c;font-weight:bold;font-size:12px;">(SOLD OUT)</span>'
+            : '';
+        $dishRowsHtml .= sprintf(
+            '<tr%s><td style="padding:6px 8px;border-bottom:1px solid #eee;font-weight:bold;">%s</td>'
+            . '<td style="padding:6px 8px;border-bottom:1px solid #eee;%s">%s%s</td>'
+            . '<td style="padding:6px 8px;border-bottom:1px solid #eee;color:#4b5563;%s">%s</td></tr>',
+            $rowStyle,
+            e($code),
+            $soldOut ? 'text-decoration:line-through;' : '',
+            dish_name_html($zhName),
+            $soldOutBadge,
+            $soldOut ? 'text-decoration:line-through;' : '',
+            e($enName)
+        );
+    }
+
+    $templatePath = dirname(__DIR__) . '/emails/staff-order-invite.html';
+    $template = is_file($templatePath) ? file_get_contents($templatePath) : '<p>Hi {{NAME}}, order here: {{LINK}}</p>';
+
+    $body = strtr($template, [
+        '{{NAME}}'           => e($name),
+        '{{LINK}}'           => e($link),
+        '{{EVENT_TITLE}}'    => e($eventTitle),
+        '{{EVENT_DATE}}'     => e($eventDate),
+        '{{EVENT_LOCATION}}' => e($eventLocation),
+        '{{DISH_LIST}}'      => $dishRowsHtml,
+    ]);
+
+    $subject = $eventTitle.'-Your Complimentary Lunch Order Link';
+
+    $replyTo    = email_list((string) env('reply_to', 'cd@crosspointchurchsv.org'));
+    $returnPath = trim((string) env('return_path', ''));
+    $fromEmail  = $replyTo[0] ?? 'cd@crosspointchurchsv.org';
+
+    $headers = [
+        'From: Crosspoint Church <' . $fromEmail . '>',
+        'Reply-To: ' . ($replyTo ? implode(', ', $replyTo) : $fromEmail),
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=UTF-8',
+        'X-Mailer: PHP/' . phpversion(),
+    ];
+    if ($returnPath !== '' && filter_var($returnPath, FILTER_VALIDATE_EMAIL)) {
+        $headers[] = 'Return-Path: ' . $returnPath;
+    }
+
+    $params = ($returnPath !== '' && filter_var($returnPath, FILTER_VALIDATE_EMAIL))
+        ? '-f ' . escapeshellarg($returnPath)
+        : null;
+
+    $sent = $params !== null
+        ? mail($to, $subject, $body, implode("\r\n", $headers), $params)
+        : mail($to, $subject, $body, implode("\r\n", $headers));
+
+    app_log('high', 'Email', $sent ? 'staff invite sent' : 'staff invite FAILED', ['to' => $to]);
 
     return $sent;
 }

@@ -8,14 +8,13 @@
       <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">{{EVENT_TITLE}}</p>
 
       <p style="font-size:15px;">Hi {{NAME}},</p>
-      <p style="font-size:15px;">Thank you — your lunch box order (<strong>#{{ORDER_ID}}</strong>) has been received and paid.</p>
+      <p style="font-size:15px;">Thank you — your staff lunch box order (<strong>#{{ORDER_ID}}</strong>) has been received. No payment is required for staff orders.</p>
       {{FALLBACK_NOTE}}
 
       <p style="font-size:14px;color:#374151;">
         <strong>Campus:</strong> {{CAMPUS}}<br>
         <strong>Life Group:</strong> {{LIFT_GROUP}}<br>
         <strong># of Attendees:</strong> {{ATTENDING_ADULTS}}{{ADULT_NAMES_LINE}}<br>
-        <!-- <strong>Children (12 &amp; under):</strong> {{ATTENDING_CHILDREN}}{{CHILD_NAMES_LINE}} -->
       </p>
 
       <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
@@ -23,18 +22,11 @@
           <tr style="text-align:left;color:#6b7280;border-bottom:2px solid #e5e7eb;">
             <th style="padding:6px 12px;">Lunch Box</th>
             <th style="padding:6px 12px;text-align:center;">Qty</th>
-            <th style="padding:6px 12px;text-align:right;">Subtotal</th>
           </tr>
         </thead>
         <tbody>
           {{ITEMS_TABLE}}
         </tbody>
-        <tfoot>
-          <tr>
-            <td style="padding:10px 12px;font-weight:bold;" colspan="2">Total paid</td>
-            <td style="padding:10px 12px;font-weight:bold;text-align:right;">{{TOTAL}}</td>
-          </tr>
-        </tfoot>
       </table>
 
       <p style="font-size:14px;color:#374151;">

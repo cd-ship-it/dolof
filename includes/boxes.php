@@ -9,10 +9,11 @@
  */
 require_once __DIR__ . '/logger.php';
 
-const DOLOS_TBL_BOXES    = 'dolos_boxes';
-const DOLOS_TBL_ORDERS   = 'dolos_orders';
-const DOLOS_TBL_ITEMS    = 'dolos_order_items';
-const DOLOS_TBL_SETTINGS = 'dolos_settings';
+const DOLOS_TBL_BOXES        = 'dolos_boxes';
+const DOLOS_TBL_ORDERS       = 'dolos_orders';
+const DOLOS_TBL_ITEMS        = 'dolos_order_items';
+const DOLOS_TBL_SETTINGS     = 'dolos_settings';
+const DOLOS_TBL_STAFF_TOKENS = 'dolos_staff_tokens';
 
 class BoxCapacityException extends RuntimeException
 {

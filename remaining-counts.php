@@ -7,6 +7,12 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/boxes.php';
 
 header('Content-Type: application/json');
+// Must not be cached by SiteGround Dynamic Cache / CDN / browsers — this is
+// polled live by the order form. A stale hit made Set B show "17 left" while
+// admin/SQL correctly showed 0 remaining.
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 try {
     $out = [];
