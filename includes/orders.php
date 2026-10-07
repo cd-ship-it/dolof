@@ -371,6 +371,109 @@ function mark_order_cancelled(PDO $pdo, int $id): bool
 }
 
 /**
+ * Mark a paid order as refunded. Lunch-box quota is released automatically
+ * because box_taken_counts() only counts paid + held-pending orders.
+ */
+function mark_order_refunded(PDO $pdo, int $id): bool
+{
+    $stmt = $pdo->prepare(
+        'UPDATE ' . DOLOS_TBL_ORDERS . "
+            SET status = 'refunded', hold_expires_at = NULL, updated_at = NOW()
+          WHERE id = ? AND status = 'paid'"
+    );
+    $stmt->execute([$id]);
+    return $stmt->rowCount() > 0;
+}
+
+/**
+ * Refund a paid order: Stripe charge (when applicable) then status → refunded.
+ *
+ * @return array{ok:bool, error?:string, refund_id?:string}
+ */
+function order_refund(PDO $pdo, int $id): array
+{
+    $order = order_get($pdo, $id);
+    if ($order === null) {
+        return ['ok' => false, 'error' => 'Order not found.'];
+    }
+    if (($order['status'] ?? '') !== 'paid') {
+        return ['ok' => false, 'error' => 'Only paid orders can be refunded.'];
+    }
+
+    $paymentMethod = (string) ($order['payment_method'] ?? 'stripe');
+    $sessionId     = trim((string) ($order['stripe_session_id'] ?? ''));
+    $amountCents   = (int) ($order['total_amount_cents'] ?? 0);
+    $refundId      = '';
+
+    // Card charges go through Stripe Checkout; staff/rsvp / $0 skip Stripe.
+    if ($paymentMethod === 'stripe' && $amountCents > 0) {
+        if ($sessionId === '') {
+            return ['ok' => false, 'error' => 'Missing Stripe session for this order.'];
+        }
+        if (STRIPE_SECRET_KEY === '') {
+            return ['ok' => false, 'error' => 'Stripe is not configured.'];
+        }
+
+        try {
+            \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
+            $session = \Stripe\Checkout\Session::retrieve($sessionId);
+            $pi = $session->payment_intent ?? null;
+            if (is_object($pi) && isset($pi->id)) {
+                $pi = $pi->id;
+            }
+            $pi = is_string($pi) ? trim($pi) : '';
+            if ($pi === '') {
+                return ['ok' => false, 'error' => 'No Stripe payment found for this order.'];
+            }
+
+            $refund = \Stripe\Refund::create([
+                'payment_intent' => $pi,
+                'metadata'       => [
+                    'order_id' => (string) $id,
+                    'source'   => 'dolos',
+                ],
+            ]);
+            $refundId = (string) ($refund->id ?? '');
+        } catch (\Stripe\Exception\InvalidRequestException $e) {
+            // Already fully refunded in Stripe Dashboard — still free local quota.
+            $msg = $e->getMessage();
+            if (stripos($msg, 'already been refunded') === false
+                && stripos($msg, 'has already been refunded') === false) {
+                app_log('high', 'Refund', 'stripe refund failed', [
+                    'order_id' => $id,
+                    'error'    => $msg,
+                ]);
+                return ['ok' => false, 'error' => 'Stripe refund failed: ' . $msg];
+            }
+        } catch (Throwable $e) {
+            app_log('high', 'Refund', 'stripe refund failed', [
+                'order_id' => $id,
+                'error'    => $e->getMessage(),
+            ]);
+            return ['ok' => false, 'error' => 'Stripe refund failed: ' . $e->getMessage()];
+        }
+    }
+
+    if (!mark_order_refunded($pdo, $id)) {
+        // Race: another admin may have refunded between the check and update.
+        $fresh = order_get($pdo, $id);
+        if ($fresh && ($fresh['status'] ?? '') === 'refunded') {
+            return ['ok' => true, 'refund_id' => $refundId];
+        }
+        return ['ok' => false, 'error' => 'Could not update order status.'];
+    }
+
+    app_log('high', 'Refund', 'order refunded', [
+        'order_id'  => $id,
+        'refund_id' => $refundId,
+        'method'    => $paymentMethod,
+        'amount'    => $amountCents,
+    ]);
+
+    return ['ok' => true, 'refund_id' => $refundId];
+}
+
+/**
  * Unguessable cancel capability for Stripe cancel_url / pay-page cancel links.
  * Bound to the order id via HMAC so /cancel cannot mutate arbitrary pending orders.
  */

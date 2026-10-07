@@ -10,7 +10,7 @@ require_once dirname(__DIR__) . '/includes/layout.php';
 require_admin();
 
 $statusFilter = $_GET['status'] ?? 'paid';
-$allowed      = ['paid', 'pending', 'expired', 'cancelled', 'all'];
+$allowed      = ['paid', 'pending', 'expired', 'cancelled', 'refunded', 'all'];
 if (!in_array($statusFilter, $allowed, true)) {
     $statusFilter = 'paid';
 }
@@ -48,7 +48,7 @@ admin_head('Orders', 'orders');
 
 <form method="get" class="mb-4 flex flex-wrap gap-3 text-sm">
   <select name="status" class="rounded border-gray-300">
-    <?php foreach (['paid', 'pending', 'expired', 'cancelled', 'all'] as $s): ?>
+    <?php foreach (['paid', 'pending', 'expired', 'cancelled', 'refunded', 'all'] as $s): ?>
       <option value="<?= $s ?>" <?= $s === $statusFilter ? 'selected' : '' ?>><?= ucfirst($s) ?></option>
     <?php endforeach; ?>
   </select>

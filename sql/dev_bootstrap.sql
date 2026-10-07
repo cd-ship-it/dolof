@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS `dolos_orders` (
   `attending_children`      INT          NOT NULL DEFAULT 0,
   `adult_names`             TEXT         NULL,
   `child_names`             TEXT         NULL,
-  `status`                  ENUM('pending','paid','expired','cancelled') NOT NULL DEFAULT 'pending',
+  `status`                  ENUM('pending','paid','expired','cancelled','refunded') NOT NULL DEFAULT 'pending',
   `total_amount_cents`      INT          NOT NULL DEFAULT 0,
   `stripe_session_id`       VARCHAR(255) NOT NULL DEFAULT '',
   `payment_method`          VARCHAR(20)  NOT NULL DEFAULT 'stripe',
